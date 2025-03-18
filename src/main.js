@@ -1,0 +1,10 @@
+import '@/assets/style.css';
+import javascriptLogo from './javascript.svg';
+import viteLogo from '/vite.svg';
+import {setupCounter} from './counter.js';
+
+document.querySelector('#app').innerHTML = /*jsx*/ `
+  <div></div>
+`;
+
+setupCounter(document.querySelector('#counter'));

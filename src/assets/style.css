@@ -1,0 +1,257 @@
+@import './fonts/index.css';
+
+:root {
+  --white: #ffffff;
+  --light-white: #f1f1f1;
+  --accent: #5f5cf0;
+  --disabled: #bbb9d2;
+  --grey: #a5a5a5;
+  --border-color: rgba(204, 204, 206, 0.28);
+  --main-frame-gradient: linear-gradient(
+    180deg,
+    #5f5cf0 0%,
+    #dddcfc 42.5%,
+    #ffffff 100%
+  );
+  --frame-background: rgba(255, 255, 255, 0.4);
+  --error-gradient: linear-gradient(180deg, #f05c5c 0%, #8f8df4 100%);
+}
+
+body {
+  background: var(--grey);
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+}
+
+.file-card {
+  background: var(--main-frame-gradient);
+  width: 302px;
+  padding: 12px 13px;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  color: var(--white);
+  font-family: Inter, sans-serif;
+  &__close-button {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    padding: 7.5px 9px;
+    color: var(--white);
+    background: var(--border-color);
+    outline: none;
+    border: none;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    svg {
+      width: 20px;
+      height: 20px;
+      use {
+        transform: scale(1.25);
+      }
+    }
+  }
+  &__title {
+    padding: 0px;
+    margin: 0px;
+    padding-top: 32px;
+    text-align: center;
+    font-family: Inter;
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 100%;
+    letter-spacing: 0%;
+    text-align: center;
+  }
+
+  /* Элемент | http://localhost:5173/? */
+
+  &__tooltip {
+    font-family: Inter;
+    font-weight: 300;
+    font-size: 14px;
+    line-height: 100%;
+    letter-spacing: 0%;
+    text-align: center;
+  }
+  &__input-wrapper {
+    position: relative;
+    color: var(--grey);
+    margin-top: 2px;
+  }
+  &__input {
+    width: 100%;
+    height: 35px;
+    border-radius: 10px;
+    padding-top: 6px;
+    padding-right: 9px;
+    padding-bottom: 6px;
+    padding-left: 9px;
+    border-width: 1px;
+    background: var(--light-white);
+    border: 1px solid var(--grey);
+    outline: none;
+  }
+  &__clear-input {
+    position: absolute;
+    top: 9px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    color: inherit;
+    border: none;
+    outline: none;
+    background: inherit;
+    svg {
+      width: 17px;
+      height: 17px;
+    }
+    
+  }
+
+  &__input {
+    font-family: Inter;
+    font-weight: 500;
+    font-size: 17.5px;
+    line-height: 100%;
+    letter-spacing: 0%;
+  }
+
+  &__dropzone {
+    display: grid;
+    place-items: center;
+    width: 277;
+    height: 257;
+    border-radius: 30px;
+    gap: 9px;
+    padding: 42px 26px 29px;
+    line-height: 113%;
+    border: 1px solid var(--grey);
+    background: var(--frame-background);
+
+    p {
+      padding: 0 5px;
+      margin: 0;
+      color: var(--accent);
+      font-family: Inter;
+      font-weight: 400;
+      font-size: 14px;
+      letter-spacing: 0%;
+      text-align: center;
+    }
+  }
+  &__file-input {
+    width: 0;
+    height: 0;
+    outline: none;
+    border: none;
+    opacity: 0;
+  }
+
+  &__submit {
+    width: 277;
+    height: 56;
+    border-radius: 30px;
+    padding: 16px 0 19px;
+    text-align: center;
+    color: var(--white);
+    background: var(--accent);
+    border: none;
+    outline: none;
+    font-family: Inter;
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 100%;
+    letter-spacing: 0%;
+    &[disabled] {
+      background: var(--disabled);
+    }
+  }
+
+  &__info {
+    border: 1px solid var(--grey);
+    border-radius: 10px;
+    padding: 2px;
+    gap: 10px;
+    display: flex;
+    justify-content: space-between;
+    color: var(--accent);
+    background: var(--light-white);
+  }
+
+  &__marker {
+    background: var(--accent);
+    flex-basis: 37px;
+    height: 28px;
+    border-radius: 10px;
+  }
+
+  &__data {
+    flex-grow: 1;
+    padding: 4px 4px 1px;
+    gap: 5px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'filename percents'
+      'progress progress';
+  }
+
+  &__filename {
+    grid-area: filename;
+    font-family: Inter;
+    font-weight: 500;
+    font-size: 10px;
+    line-height: 100%;
+    letter-spacing: 0%;
+  }
+
+  &__percents {
+    grid-area: percents;
+    font-family: Inter;
+    font-weight: 400;
+    font-size: 10px;
+    line-height: 100%;
+    letter-spacing: 0%;
+    justify-self: end;
+  }
+
+  &__progress-bar {
+    grid-area: progress;
+    height: 5px;
+    background: var(--white);
+  }
+
+  &__progress-indicator {
+    height: 100%;
+    width: 50%;
+    background: var(--accent);
+    border-radius: 10px;
+  }
+
+  &__delete {
+    border: none;
+    outline: none;
+    display: grid;
+    place-items: center;
+    background: none;
+    color: inherit;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
