@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "cssnano": "^7.0.6",
     "vite": "^6.2.0"
   },
   "dependencies": {
