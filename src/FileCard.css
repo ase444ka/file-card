@@ -2,25 +2,36 @@
   * {
     box-sizing: border-box;
   }
-  
+
   button {
     cursor: pointer;
   }
   &__form {
-  background: linear-gradient(
-    180deg,
-    #5f5cf0 0%,
-    #dddcfc 42.5%,
-    #ffffff 100%);
-  width: 302px;
-  padding: 12px 13px;
-  border-radius: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
-  color: var(--white);
-  font-family: Inter, sans-serif;
+    background: linear-gradient(
+      180deg,
+      #5f5cf0 0%,
+      #dddcfc 42.5%,
+      #ffffff 100%
+    );
+    width: 302px;
+    height: 500px;
+    padding: 12px 13px;
+    border-radius: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    color: var(--white);
+    font-family: Inter, sans-serif;
+    &.transformed {
+      background: linear-gradient(180deg, #5F5CF0 0%, #8F8DF4 100%);
+      height: 300px;
+      transform: translateY(90px);
+      .file-card__submit, .file-card__info, .file-card__dropzone {
+        opacity: 0;
+      }
+
+    }
   }
   &__close-button {
     position: absolute;
@@ -54,7 +65,6 @@
     letter-spacing: 0%;
     text-align: center;
   }
-
 
   &__tooltip {
     font-family: Inter;
@@ -98,7 +108,6 @@
       width: 17px;
       height: 17px;
     }
-    
   }
 
   &__input {
@@ -216,9 +225,20 @@
 
   &__progress-indicator {
     height: 100%;
-    width: 50%;
     background: var(--accent);
     border-radius: 10px;
+    &.animating {
+      animation: progress 2s;
+    }
+  }
+
+  @keyframes progress {
+    from {
+      width: 0%;
+    }
+    to {
+      width: 100%;
+    }
   }
 
   &__delete {
@@ -234,10 +254,25 @@
       height: 16px;
     }
   }
-  div.hidden {
+
+  &__user-message {
+    background: linear-gradient(
+      180deg,
+      #5f5cf0 0%,
+      #dddcfc 42.5%,
+      #ffffff 100%
+    );
+    width: 302px;
+    padding: 12px 13px;
+    border-radius: 22px;
+    height: 350px;
+  }
+
+  .hidden {
     height: 0;
     opacity: 0;
-    transform: scaleY(0)
+    transform: scaleY(0);
+    overflow: hidden;
   }
   div.transparent {
     opacity: 0;
@@ -246,5 +281,4 @@
   * {
     transition: all 300ms;
   }
-
 }

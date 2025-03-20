@@ -1,12 +1,4 @@
-import nestedStyle from './FileCard.css?inline';
-import postcss from 'postcss';
-
-const parsed = postcss.parse(nestedStyle);
-
-const spriteURL = new URL('@/assets/images/sprites.svg#cross', import.meta.url)
-  .href;
-const dropzoneImgURL = new URL('@/assets/images/dropzone.svg', import.meta.url)
-  .href;
+import {template} from './template.js'
 
 Element.prototype.hide = function () {
   this.classList.add('hidden');
@@ -36,6 +28,13 @@ export default class FileCard extends HTMLElement {
       file: null,
     };
     prepareDropzone();
+    window.test = this
+  }
+
+  connectedCallback() {
+    this.makeDataProxy();
+    this.shadow = this.attachShadow({mode: 'open'});
+    this.render();
   }
 
   makeDataProxy() {
@@ -49,28 +48,34 @@ export default class FileCard extends HTMLElement {
   }
 
   handleChanges(prop, value) {
+    console.log(prop)
     switch (prop) {
       case 'fileName':
         if (value) {
-          if (this.data.file) {
-            this.data.formDisabled = false
-            this.setTooltip('Отправьте ваш файл');
-          }
+          console.log('name changed')
+          this.fileInput.removeAttribute('disabled')
           this.setTooltip('Загрузите ваш файл');
         } else {
+          console.log('nono')
+          this.fileInput.setAttribute('disabled', '')
           this.setTooltip('Перед загрузкой дайте имя файлу ');
+          this.textInput.value = '';
+          this.textInputPannel.show()
           this.data.formDisabled = true;
         }
         break;
       case 'file':
         if (!value) {
+        this.textInputPannel.show()
+        this.infoPannel.hide()
+        this.progressIndicator.classList.remove('animating')
           this.data.formDisabled = true;
           return;
         }
-        if (this.data.fileName) {
-          this.data.formDisabled = false
-          this.setTooltip('Отправьте ваш файл');
-        }
+        this.nameInfo.innerHTML = this.data.fileName + '.' + value.name.split('.')[1]
+        this.infoPannel.show()
+        this.progressIndicator.classList.add('animating')
+        this.data.formDisabled = false;
         setTimeout(() => {
           this.checkExtension();
           this.checkSize();
@@ -79,9 +84,10 @@ export default class FileCard extends HTMLElement {
         break;
       case 'formDisabled':
         if (value) {
-          this.submit.addAttribute('disabled');
+          console.log(this.submitButton)
+          this.submitButton.setAttribute('disabled', '');
         } else {
-          this.submit.removeAttribute('disabled');
+          this.submitButton.removeAttribute('disabled');
         }
 
       default:
@@ -100,94 +106,69 @@ export default class FileCard extends HTMLElement {
   }
 
   render() {
-    this.shadow.innerHTML = /*jsx*/ `
-    <style>${parsed}</style>
-    
-    <div class="file-card">
-      
-      <form class="file-card__form" id="file_form">
-      <h3 class="file-card__title">Загрузочное окно</h3>
-      <button class="file-card__close-button">
-        <svg>
-          <use href="${spriteURL}"></use>
-        </svg>
-      </button>
-      <div class="file-card__tooltip">Перед загрузкой дайте имя файлу</div>
-      <div class="file-card__input-wrapper">
-        <input type="text" class="file-card__input" placeholder="Название файла" value="${this.data.fileName}" />
-        <button class="file-card__clear-input">
-          <svg>
-            <use href="${spriteURL}"></use>
-          </svg>
-        </button>
-      </div>
-      <label class="file-card__dropzone">
-        <img src="${dropzoneImgURL}" />
-        <p>Перенесите ваш файл в область выше</p>
-        <input class="file-card__file-input" type="file" accept=".json, .txt" />
-      </label>
-      <div class="file-card__info">
-        <div class="file-card__marker"></div>
-        <div class="file-card__data">
-          <div class="file-card__filename">${this.data.fileName}.${this.fileExtension}</div>
-          <div class="file-card__percents">30%</div>
-          <div class="file-card__progress-bar">
-            <div class="file-card__progress-indicator"></div>
-          </div>
-          
-        </div>
-        <button class="file-card__delete">
-          <svg>
-            <use href="${spriteURL}"></use>
-          </svg>
-        </button>
-      </div>
-      <button type="submit" disabled class="file-card__submit">Загрузить</button>
-  
-    </form>
-    
-  </div>
-  `;
+    this.shadow.innerHTML = template;
 
     this.fileInput = this.shadowRoot.querySelector('.file-card__file-input');
     this.form = this.shadowRoot.querySelector('.file-card__form');
     this.textInput = this.shadowRoot.querySelector('.file-card__input');
-    this.clearButton = this.shadowRoot.querySelector('.file-card__clear-input');
+    this.clearTextButton = this.shadowRoot.querySelector('.file-card__clear-input');
 
     this.textInputPannel = this.shadowRoot.querySelector(
       '.file-card__input-wrapper'
     );
     this.tooltip = this.shadowRoot.querySelector('.file-card__tooltip');
-    this.submit = this.shadowRoot.querySelector('.file-card__submit');
+    this.submitButton = this.shadowRoot.querySelector('.file-card__submit');
+    this.dropzone = this.shadowRoot.querySelector('.file-card__dropzone')
+    this.infoPannel = this.shadowRoot.querySelector('.file-card__info')
+    this.progressIndicator = this.shadowRoot.querySelector('.file-card__progress-indicator')
+    this.deleteAllButton = this.shadowRoot.querySelector('.file-card__delete')
+    this.nameInfo = this.shadowRoot.querySelector('.file-card__filename')
+    this.messagePannel = this.shadowRoot.querySelector('.file-card__user-message')
 
-    this.shadowRoot.querySelector('.file-card__dropzone').addEventListener(
+    this.dropzone.addEventListener(
       'drop',
       (e) => {
+        if (!this.data.fileName) {
+          return
+        }
         this.data.file = e.dataTransfer.files[0];
         this.textInputPannel.hide();
       },
       false
     );
 
+
+
+
     this.fileInput.addEventListener('change', (e) => {
       this.data.file = e.target.files[0];
+      this.textInputPannel.hide()
+
     });
 
     this.form.addEventListener('submit', (e) => {
       e.preventDefault();
+      this.form.classList.add('transformed')
     });
 
     this.textInput.addEventListener('change', (e) => {
       this.data.fileName = e.currentTarget.value;
     });
 
-    this.clearButton.addEventListener('click', (e) => {
+    this.clearTextButton.addEventListener('click', (e) => {
       this.data.fileName = '';
-      this.textInput.value = '';
     });
+
+    this.deleteAllButton.addEventListener('click', () => {
+      this.data.file = null
+      this.data.fileName = ''
+    })
   }
 
   sendFile() {
+    if (this.formDisabled) {
+      return
+    }
     const fd = new FormData();
     fd.append('file', this.data.file, 'test.json');
     fd.append('name', this.data.name);
@@ -204,11 +185,7 @@ export default class FileCard extends HTMLElement {
       .finally(() => console.log('finally'));
   }
 
-  connectedCallback() {
-    this.makeDataProxy();
-    this.shadow = this.attachShadow({mode: 'open'});
-    this.render();
-  }
+  
 
   setTooltip(value) {
     this.tooltip.classList.add('transparent');
