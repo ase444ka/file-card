@@ -1,4 +1,5 @@
-import {template} from './template.js'
+import {template} from './template.js';
+import axios from 'axios'
 
 Element.prototype.hide = function () {
   this.classList.add('hidden');
@@ -24,11 +25,23 @@ export default class FileCard extends HTMLElement {
     super();
     this.data = {
       fileName: '',
-      fileExtension: '',
       file: null,
     };
     prepareDropzone();
-    window.test = this
+    window.test = this;
+  }
+
+  get fileExtension() {
+    if (!this.data.file) {
+      return ''
+    } else {
+      return this.data.file.name.split('.')[1] || ''
+    }
+
+  }
+
+  get fileNameWithExtension() {
+    return `${this.data.fileName}.${this.fileExtension}`
   }
 
   connectedCallback() {
@@ -47,47 +60,51 @@ export default class FileCard extends HTMLElement {
     });
   }
 
+  handleFileName(value) {
+    if (value) {
+      this.fileInput.removeAttribute('disabled');
+      this.setTooltip('Загрузите ваш файл');
+    } else {
+      this.fileInput.setAttribute('disabled', '');
+      this.setTooltip('Перед загрузкой дайте имя файлу');
+      this.textInput.value = '';
+      this.textInputPannel.show();
+      this.data.formDisabled = true;
+    }
+  }
+
+  handleFile(value) {
+    if (!value) {
+      this.textInputPannel.show();
+      this.infoPannel.hide();
+      this.progressIndicator.classList.remove('animating');
+      this.submitButton.setAttribute('disabled', '');
+    } else {
+      this.nameInfo.innerHTML =
+        this.data.fileName + '.' + value.name.split('.')[1];
+      this.infoPannel.show();
+      this.progressIndicator.classList.add('animating');
+      this.submitButton.removeAttribute('disabled');
+      setTimeout(() => {
+        this.checkExtension();
+        this.checkSize();
+      }, 0);
+    }
+  }
+
   handleChanges(prop, value) {
-    console.log(prop)
     switch (prop) {
       case 'fileName':
-        if (value) {
-          console.log('name changed')
-          this.fileInput.removeAttribute('disabled')
-          this.setTooltip('Загрузите ваш файл');
-        } else {
-          console.log('nono')
-          this.fileInput.setAttribute('disabled', '')
-          this.setTooltip('Перед загрузкой дайте имя файлу ');
-          this.textInput.value = '';
-          this.textInputPannel.show()
-          this.data.formDisabled = true;
-        }
+        this.handleFileName(value);
         break;
       case 'file':
-        if (!value) {
-        this.textInputPannel.show()
-        this.infoPannel.hide()
-        this.progressIndicator.classList.remove('animating')
-          this.data.formDisabled = true;
-          return;
-        }
-        this.nameInfo.innerHTML = this.data.fileName + '.' + value.name.split('.')[1]
-        this.infoPannel.show()
-        this.progressIndicator.classList.add('animating')
-        this.data.formDisabled = false;
-        setTimeout(() => {
-          this.checkExtension();
-          this.checkSize();
-        }, 0);
+        this.handleFile(value);
 
         break;
       case 'formDisabled':
         if (value) {
-          console.log(this.submitButton)
-          this.submitButton.setAttribute('disabled', '');
+          console.log(this.submitButton);
         } else {
-          this.submitButton.removeAttribute('disabled');
         }
 
       default:
@@ -98,38 +115,96 @@ export default class FileCard extends HTMLElement {
   checkExtension() {
     if (!/\.(txt|json|csv)/.test(this.data.file?.name || '')) {
       this.data.file = null;
+      this.showError('Допустимы только расширения .txt, .json и .csv');
     }
   }
 
   checkSize() {
-    console.log(this.data.file.size);
+    if (this.data.file.size > 1024) {
+      this.data.file = null;
+      this.showError('Допустимый размер до 1Кб');
+    }
   }
 
-  render() {
-    this.shadow.innerHTML = template;
+  setTooltip(value) {
+    this.tooltip.classList.add('transparent');
+    setTimeout(() => {
+      this.tooltip.innerHTML = value;
 
+      this.tooltip.classList.remove('transparent');
+    }, 150);
+  }
+  setTitle(value) {
+    console.log(this.header.classList);
+    this.header.classList.add('transparent');
+    setTimeout(() => {
+      this.header.innerHTML = value;
+
+      this.header.classList.remove('transparent');
+    }, 150);
+  }
+
+  showSuccess(message) {
+    this.form.classList.add('user-message');
+    this.setTitle('Файл успешно загружен');
+    this.setTooltip(message);
+  }
+
+  showError(message) {
+    this.form.classList.add('user-message');
+    this.form.classList.add('user-error');
+    this.setTitle('Ошибка загрузки');
+    this.setTooltip(message);
+  }
+
+  hideMessage() {
+    this.form.classList.remove('user-message');
+    this.form.classList.remove('user-error');
+    this.setTitle('Окно загрузки');
+    const message = this.data.fileName
+      ? 'Загрузите ваш файл'
+      : 'Перед загрузкой дайте имя файлу';
+    this.setTooltip(message);
+  }
+
+  initElements() {
     this.fileInput = this.shadowRoot.querySelector('.file-card__file-input');
     this.form = this.shadowRoot.querySelector('.file-card__form');
     this.textInput = this.shadowRoot.querySelector('.file-card__input');
-    this.clearTextButton = this.shadowRoot.querySelector('.file-card__clear-input');
+    this.clearTextButton = this.shadowRoot.querySelector(
+      '.file-card__clear-input'
+    );
 
     this.textInputPannel = this.shadowRoot.querySelector(
       '.file-card__input-wrapper'
     );
     this.tooltip = this.shadowRoot.querySelector('.file-card__tooltip');
     this.submitButton = this.shadowRoot.querySelector('.file-card__submit');
-    this.dropzone = this.shadowRoot.querySelector('.file-card__dropzone')
-    this.infoPannel = this.shadowRoot.querySelector('.file-card__info')
-    this.progressIndicator = this.shadowRoot.querySelector('.file-card__progress-indicator')
-    this.deleteAllButton = this.shadowRoot.querySelector('.file-card__delete')
-    this.nameInfo = this.shadowRoot.querySelector('.file-card__filename')
-    this.messagePannel = this.shadowRoot.querySelector('.file-card__user-message')
+    this.dropzone = this.shadowRoot.querySelector('.file-card__dropzone');
+    this.infoPannel = this.shadowRoot.querySelector('.file-card__info');
+    this.progressIndicator = this.shadowRoot.querySelector(
+      '.file-card__progress-indicator'
+    );
+    this.deleteAllButton = this.shadowRoot.querySelector('.file-card__delete');
+    this.nameInfo = this.shadowRoot.querySelector('.file-card__filename');
+    this.messagePannel = this.shadowRoot.querySelector(
+      '.file-card__user-message'
+    );
+    this.header = this.shadowRoot.querySelector('.file-card__title');
+    this.closeButton = this.shadowRoot.querySelector(
+      '.file-card__close-button'
+    );
+  }
 
+  registerEvents() {
     this.dropzone.addEventListener(
       'drop',
       (e) => {
-        if (!this.data.fileName) {
+        if (this.form.hasAttribute('disabled')) {
           return
+        }
+        if (!this.data.fileName) {
+          return;
         }
         this.data.file = e.dataTransfer.files[0];
         this.textInputPannel.hide();
@@ -137,18 +212,24 @@ export default class FileCard extends HTMLElement {
       false
     );
 
-
-
-
     this.fileInput.addEventListener('change', (e) => {
-      this.data.file = e.target.files[0];
-      this.textInputPannel.hide()
 
+      this.data.file = e.target.files[0];
+      this.textInputPannel.hide();
+    });
+
+    this.fileInput.addEventListener('click', (e) => {
+      if (this.form.hasAttribute('disabled')) {
+        e.stopImmediatePropagation()
+        return false
+      }
+      this.data.file = e.target.files[0];
+      this.textInputPannel.hide();
     });
 
     this.form.addEventListener('submit', (e) => {
       e.preventDefault();
-      this.form.classList.add('transformed')
+      this.sendFile()
     });
 
     this.textInput.addEventListener('change', (e) => {
@@ -160,40 +241,48 @@ export default class FileCard extends HTMLElement {
     });
 
     this.deleteAllButton.addEventListener('click', () => {
-      this.data.file = null
-      this.data.fileName = ''
-    })
+      this.data.file = null;
+      this.data.fileName = '';
+    });
+
+    this.closeButton.addEventListener('click', () => {
+      this.hideMessage();
+    });
+  }
+
+  render() {
+    this.shadow.innerHTML = template;
+
+    this.initElements();
+    this.registerEvents();
   }
 
   sendFile() {
-    if (this.formDisabled) {
-      return
-    }
+    this.form.setAttribute('disabled', '');
+    this.submitButton.setAttribute('disabled', '');
+    this.fileInput.setAttribute('disabled', '');
     const fd = new FormData();
-    fd.append('file', this.data.file, 'test.json');
-    fd.append('name', this.data.name);
-    fetch('https://file-upload-server-mc26.onrender.com/api/v1/upload', {
-      method: 'POST',
-      body: fd,
-    })
-      .then(() => {
-        console.log('success');
+    fd.append('file', this.data.file, this.fileNameWithExtension);
+    fd.append('name', this.fileNameWithExtension);
+    axios.post('https://file-upload-server-mc26.onrender.com/api/v1/upload', fd)
+      .then((response) => {
+        console.log(response)
+        const message = `
+          name: ${response.data.name}
+          message: ${response.data.message}
+          timestamp: ${response.data.timestamp}
+        `
+        this.showSuccess(message)
       })
       .catch((e) => {
-        console.log('bad(', e.message);
+        console.log(e)
+        this.showError(e.message)
       })
-      .finally(() => console.log('finally'));
-  }
-
-  
-
-  setTooltip(value) {
-    this.tooltip.classList.add('transparent');
-    setTimeout(() => {
-      this.tooltip.innerHTML = value;
-
-      this.tooltip.classList.remove('transparent');
-    }, 150);
+      .finally(() => {
+        this.form.removeAttribute('disabled');
+        this.submitButton.removeAttribute('disabled');
+        this.fileInput.removeAttribute('disabled');
+      });
   }
 }
 

@@ -14,7 +14,7 @@ export const template = /*jsx*/ `
   
   <form class="file-card__form" id="file_form">
   <h3 class="file-card__title">Загрузочное окно</h3>
-  <button class="file-card__close-button">
+  <button class="file-card__close-button" type="button">
     <svg>
       <use href="${spriteURL}"></use>
     </svg>
