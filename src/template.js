@@ -36,8 +36,8 @@ export const template = /*jsx*/ `
   <div class="file-card__info hidden">
     <div class="file-card__marker"></div>
     <div class="file-card__data">
-      <div class="file-card__filename">sdfsdf</div>
-      <div class="file-card__percents">30%</div>
+      <div class="file-card__filename"></div>
+      <div class="file-card__percents"></div>
       <div class="file-card__progress-bar">
         <div class="file-card__progress-indicator"></div>
       </div>

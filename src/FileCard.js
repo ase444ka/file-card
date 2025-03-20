@@ -1,5 +1,5 @@
 import {template} from './template.js';
-import axios from 'axios'
+import axios from 'axios';
 
 Element.prototype.hide = function () {
   this.classList.add('hidden');
@@ -33,15 +33,14 @@ export default class FileCard extends HTMLElement {
 
   get fileExtension() {
     if (!this.data.file) {
-      return ''
+      return '';
     } else {
-      return this.data.file.name.split('.')[1] || ''
+      return this.data.file.name.split('.')[1] || '';
     }
-
   }
 
   get fileNameWithExtension() {
-    return `${this.data.fileName}.${this.fileExtension}`
+    return `${this.data.fileName}.${this.fileExtension}`;
   }
 
   connectedCallback() {
@@ -83,7 +82,6 @@ export default class FileCard extends HTMLElement {
       this.nameInfo.innerHTML =
         this.data.fileName + '.' + value.name.split('.')[1];
       this.infoPannel.show();
-      this.progressIndicator.classList.add('animating');
       this.submitButton.removeAttribute('disabled');
       setTimeout(() => {
         this.checkExtension();
@@ -194,6 +192,34 @@ export default class FileCard extends HTMLElement {
     this.closeButton = this.shadowRoot.querySelector(
       '.file-card__close-button'
     );
+    this.dataPannel = this.shadowRoot.querySelector('.file-card__data');
+    this.percents = this.shadowRoot.querySelector('.file-card__percents');
+  }
+
+  indicateProgress() {
+    this.dataPannel.classList.add('sending');
+    this.progressIndicator.classList.add('animating');
+    let currentPercents = 0;
+    const interval = setInterval(() => {
+      this.percents.innerHTML = currentPercents + '%';
+      currentPercents += 10;
+      if (currentPercents > 80) {
+        clearInterval(interval);
+      }
+    }, 200);
+  }
+
+  completeProgress() {
+    this.progressIndicator.classList.remove('animating');
+    this.progressIndicator.classList.add('completing');
+    let currentPercents = 80;
+    const interval = setInterval(() => {
+      this.percents.innerHTML = currentPercents + '%';
+      currentPercents += 10;
+      if (currentPercents > 100) {
+        clearInterval(interval);
+      }
+    }, 100);
   }
 
   registerEvents() {
@@ -201,7 +227,7 @@ export default class FileCard extends HTMLElement {
       'drop',
       (e) => {
         if (this.form.hasAttribute('disabled')) {
-          return
+          return;
         }
         if (!this.data.fileName) {
           return;
@@ -213,15 +239,14 @@ export default class FileCard extends HTMLElement {
     );
 
     this.fileInput.addEventListener('change', (e) => {
-
       this.data.file = e.target.files[0];
       this.textInputPannel.hide();
     });
 
     this.fileInput.addEventListener('click', (e) => {
       if (this.form.hasAttribute('disabled')) {
-        e.stopImmediatePropagation()
-        return false
+        e.stopImmediatePropagation();
+        return false;
       }
       this.data.file = e.target.files[0];
       this.textInputPannel.hide();
@@ -229,7 +254,7 @@ export default class FileCard extends HTMLElement {
 
     this.form.addEventListener('submit', (e) => {
       e.preventDefault();
-      this.sendFile()
+      this.sendFile();
     });
 
     this.textInput.addEventListener('change', (e) => {
@@ -261,27 +286,40 @@ export default class FileCard extends HTMLElement {
     this.form.setAttribute('disabled', '');
     this.submitButton.setAttribute('disabled', '');
     this.fileInput.setAttribute('disabled', '');
+    this.indicateProgress();
     const fd = new FormData();
     fd.append('file', this.data.file, this.fileNameWithExtension);
     fd.append('name', this.fileNameWithExtension);
-    axios.post('https://file-upload-server-mc26.onrender.com/api/v1/upload', fd)
+    axios
+      .post('https://file-upload-server-mc26.onrender.com/api/v1/upload', fd)
       .then((response) => {
-        console.log(response)
+        this.completeProgress();
         const message = `
           name: ${response.data.name}
           message: ${response.data.message}
           timestamp: ${response.data.timestamp}
-        `
-        this.showSuccess(message)
+        `;
+        setTimeout(() => {
+          this.showSuccess(message);
+          this.data.file = null;
+        this.data.fileName = '';
+        }, 5000);
+        
       })
       .catch((e) => {
-        console.log(e)
-        this.showError(e.message)
+        console.log(e);
+        this.showError(e.message);
       })
       .finally(() => {
-        this.form.removeAttribute('disabled');
+        setTimeout(() => {
+          this.form.removeAttribute('disabled');
         this.submitButton.removeAttribute('disabled');
         this.fileInput.removeAttribute('disabled');
+        this.dataPannel.classList.remove('sending');
+        this.progressIndicator.classList.remove('animating');
+        this.percents.innerHTML = '';
+        }, 10000);
+        
       });
   }
 }
