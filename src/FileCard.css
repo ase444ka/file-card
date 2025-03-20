@@ -2,6 +2,7 @@
   * {
     box-sizing: border-box;
   }
+  
   button {
     cursor: pointer;
   }
@@ -67,6 +68,8 @@
     position: relative;
     color: var(--grey);
     margin-top: 2px;
+    height: 35px;
+    overflow: hidden;
   }
   &__input {
     width: 100%;
@@ -231,4 +234,17 @@
       height: 16px;
     }
   }
+  div.hidden {
+    height: 0;
+    opacity: 0;
+    transform: scaleY(0)
+  }
+  div.transparent {
+    opacity: 0;
+  }
+
+  * {
+    transition: all 300ms;
+  }
+
 }

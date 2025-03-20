@@ -1,50 +1,106 @@
+import nestedStyle from './FileCard.css?inline';
+import postcss from 'postcss';
 
-import nestedStyle from "./FileCard.css?inline"
-import postcss from 'postcss'
+const parsed = postcss.parse(nestedStyle);
 
-const parsed = postcss.parse(nestedStyle)
+const spriteURL = new URL('@/assets/images/sprites.svg#cross', import.meta.url)
+  .href;
+const dropzoneImgURL = new URL('@/assets/images/dropzone.svg', import.meta.url)
+  .href;
 
-const spriteURL = new URL('@/assets/images/sprites.svg#cross', import.meta.url).href
-const dropzoneImgURL = new URL('@/assets/images/dropzone.svg', import.meta.url).href
+Element.prototype.hide = function () {
+  this.classList.add('hidden');
+};
 
-const processDrop = e => {
-  e.preventDefault();
-  console.log('drop!')
+Element.prototype.show = function () {
+  this.classList.remove('hidden');
+};
+
+function prepareDropzone() {
+  const events = ['dragenter', 'dragover', 'dragleave', 'drop'];
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  events.forEach((eventName) => {
+    document.body.addEventListener(eventName, preventDefaults, false);
+  });
 }
 
 export default class FileCard extends HTMLElement {
   constructor() {
-    super()
+    super();
     this.data = {
       fileName: '',
       fileExtension: '',
       file: null,
-
-    }
-    this.tooltip = 'Перед загрузкой дайте имя файлу'
-    this.content = null
-    const events = ['dragenter', 'dragover', 'dragleave', 'drop']
-    function preventDefaults(e) {
-        e.preventDefault()
-        e.stopPropagation();
-    }
-    events.forEach(eventName => {
-      document.body.addEventListener(eventName, preventDefaults, false)
-  })
+    };
+    prepareDropzone();
   }
+
   makeDataProxy() {
     this.data = new Proxy(this.data, {
       set: (target, prop, value, receiver) => {
-        Reflect.set(target, prop, value, receiver)
-        this.render()
-        return true
+        Reflect.set(target, prop, value, receiver);
+        this.handleChanges(prop, value);
+        return true;
       },
-    })
+    });
+  }
+
+  handleChanges(prop, value) {
+    switch (prop) {
+      case 'fileName':
+        if (value) {
+          if (this.data.file) {
+            this.data.formDisabled = false
+            this.setTooltip('Отправьте ваш файл');
+          }
+          this.setTooltip('Загрузите ваш файл');
+        } else {
+          this.setTooltip('Перед загрузкой дайте имя файлу ');
+          this.data.formDisabled = true;
+        }
+        break;
+      case 'file':
+        if (!value) {
+          this.data.formDisabled = true;
+          return;
+        }
+        if (this.data.fileName) {
+          this.data.formDisabled = false
+          this.setTooltip('Отправьте ваш файл');
+        }
+        setTimeout(() => {
+          this.checkExtension();
+          this.checkSize();
+        }, 0);
+
+        break;
+      case 'formDisabled':
+        if (value) {
+          this.submit.addAttribute('disabled');
+        } else {
+          this.submit.removeAttribute('disabled');
+        }
+
+      default:
+        console.log('default');
+    }
+  }
+
+  checkExtension() {
+    if (!/\.(txt|json|csv)/.test(this.data.file?.name || '')) {
+      this.data.file = null;
+    }
+  }
+
+  checkSize() {
+    console.log(this.data.file.size);
   }
 
   render() {
-
-    this.shadow.innerHTML = /*jsx*/`
+    this.shadow.innerHTML = /*jsx*/ `
     <style>${parsed}</style>
     
     <div class="file-card">
@@ -65,7 +121,7 @@ export default class FileCard extends HTMLElement {
           </svg>
         </button>
       </div>
-      <label class="file-card__dropzone" ondrop="processDrop">
+      <label class="file-card__dropzone">
         <img src="${dropzoneImgURL}" />
         <p>Перенесите ваш файл в область выше</p>
         <input class="file-card__file-input" type="file" accept=".json, .txt" />
@@ -91,54 +147,77 @@ export default class FileCard extends HTMLElement {
     </form>
     
   </div>
-  `
+  `;
 
-  this.shadowRoot.querySelector('.file-card__dropzone').addEventListener('drop', e => {
-    console.log(JSON.stringify(e.dataTransfer.files[0].name))
-    const fd = new FormData()
-    this.fileExtension = e.dataTransfer.files[0].name.split('.')?.[1]
-    console.log('иииииээ', this.fileName, '.', this.fileExtension)
-    fd.append('file', e.dataTransfer.files[0], 'test.json')
-    fd.append('name', 'test.json')
+    this.fileInput = this.shadowRoot.querySelector('.file-card__file-input');
+    this.form = this.shadowRoot.querySelector('.file-card__form');
+    this.textInput = this.shadowRoot.querySelector('.file-card__input');
+    this.clearButton = this.shadowRoot.querySelector('.file-card__clear-input');
+
+    this.textInputPannel = this.shadowRoot.querySelector(
+      '.file-card__input-wrapper'
+    );
+    this.tooltip = this.shadowRoot.querySelector('.file-card__tooltip');
+    this.submit = this.shadowRoot.querySelector('.file-card__submit');
+
+    this.shadowRoot.querySelector('.file-card__dropzone').addEventListener(
+      'drop',
+      (e) => {
+        this.data.file = e.dataTransfer.files[0];
+        this.textInputPannel.hide();
+      },
+      false
+    );
+
+    this.fileInput.addEventListener('change', (e) => {
+      this.data.file = e.target.files[0];
+    });
+
+    this.form.addEventListener('submit', (e) => {
+      e.preventDefault();
+    });
+
+    this.textInput.addEventListener('change', (e) => {
+      this.data.fileName = e.currentTarget.value;
+    });
+
+    this.clearButton.addEventListener('click', (e) => {
+      this.data.fileName = '';
+      this.textInput.value = '';
+    });
+  }
+
+  sendFile() {
+    const fd = new FormData();
+    fd.append('file', this.data.file, 'test.json');
+    fd.append('name', this.data.name);
     fetch('https://file-upload-server-mc26.onrender.com/api/v1/upload', {
       method: 'POST',
       body: fd,
-
-    }).then(() => {
-      console.log('success', res)
-    }).catch(() => {console.log('bad^(')}).finally(() => console.log('finally'));
-  
-}, false)
-  
-
-  this.shadowRoot.querySelector('.file-card__file-input').addEventListener('change', e => {
-    console.log(e)
-  })
-
-  this.shadowRoot.querySelector('.file-card__form').addEventListener('submit', e => {
-    e.preventDefault()
-  })
-
-  this.shadowRoot.querySelector('.file-card__input').addEventListener('change', e => {
-    this.data.fileName = e.currentTarget.value
-  })
-
-  this.shadowRoot.querySelector('.file-card__clear-input').addEventListener('click', e => {
-    this.data.fileName = ''
-    console.log(this.data.fileName)
-  })
-
+    })
+      .then(() => {
+        console.log('success');
+      })
+      .catch((e) => {
+        console.log('bad(', e.message);
+      })
+      .finally(() => console.log('finally'));
   }
 
   connectedCallback() {
-    this.makeDataProxy()
+    this.makeDataProxy();
     this.shadow = this.attachShadow({mode: 'open'});
-    this.render()
+    this.render();
+  }
 
+  setTooltip(value) {
+    this.tooltip.classList.add('transparent');
+    setTimeout(() => {
+      this.tooltip.innerHTML = value;
 
-  
+      this.tooltip.classList.remove('transparent');
+    }, 150);
+  }
 }
-}
-  
 
 customElements.define('file-card', FileCard);
