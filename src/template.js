@@ -22,7 +22,7 @@ export const template = /*jsx*/ `
   <div class="file-card__tooltip">Перед загрузкой дайте имя файлу</div>
   <div class="file-card__input-wrapper">
     <input type="text" class="file-card__input" placeholder="Название файла" />
-    <button class="file-card__clear-input">
+    <button class="file-card__clear-input"  type="button">
       <svg>
         <use href="${spriteURL}"></use>
       </svg>
@@ -43,7 +43,7 @@ export const template = /*jsx*/ `
       </div>
       
     </div>
-    <button class="file-card__delete">
+    <button class="file-card__delete"  type="button">
       <svg>
         <use href="${spriteURL}"></use>
       </svg>

@@ -26,17 +26,20 @@ export default class FileCard extends HTMLElement {
     this.data = {
       fileName: '',
       file: null,
+      errorMessage: '',
+      successMessage: '',
     };
+
+    this.startIndicatorInterval = null;
+    this.continueIndicatorInterval = null;
+    this.currentIndicatorPercents = 0;
+
     prepareDropzone();
     window.test = this;
   }
 
   get fileExtension() {
-    if (!this.data.file) {
-      return '';
-    } else {
-      return this.data.file.name.split('.')[1] || '';
-    }
+    return this.getExtension(this.data.file)
   }
 
   get fileNameWithExtension() {
@@ -52,11 +55,28 @@ export default class FileCard extends HTMLElement {
   makeDataProxy() {
     this.data = new Proxy(this.data, {
       set: (target, prop, value, receiver) => {
-        Reflect.set(target, prop, value, receiver);
-        this.handleChanges(prop, value);
+        const val = this.handleChanges(prop, value);
+        Reflect.set(target, prop, val, receiver);
         return true;
       },
     });
+  }
+
+  getExtension(file) {
+    return file?.name?.split('.')?.[1] || ''
+  }
+
+  handleChanges(prop, value) {
+    switch (prop) {
+      case 'fileName':
+        return this.handleFileName(value);
+      case 'file':
+        return this.handleFile(value);
+      case 'errorMessage':
+        return this.handleErrorMessage(value);
+      case 'successMessage':
+        return this.handleSuccessMessage(value);
+    }
   }
 
   handleFileName(value) {
@@ -68,76 +88,70 @@ export default class FileCard extends HTMLElement {
       this.setTooltip('Перед загрузкой дайте имя файлу');
       this.textInput.value = '';
       this.textInputPannel.show();
-      this.data.formDisabled = true;
     }
+    return value;
   }
 
   handleFile(value) {
     if (!value) {
-      this.textInputPannel.show();
       this.infoPannel.hide();
-      this.progressIndicator.classList.remove('animating');
+      this.fileInput.value = null;
       this.submitButton.setAttribute('disabled', '');
+      return null;
     } else {
-      this.nameInfo.innerHTML =
-        this.data.fileName + '.' + value.name.split('.')[1];
+      this.data.errorMessage =
+        this.getBadExtensionMessage(value) || this.getBadSizeMessage(value);
+      if (this.data.errorMessage) {
+        this.fileInput.value = null;
+        return null;
+      }
+      this.nameInfo.innerHTML = `${this.data.fileName}.${this.getExtension(value)}`;
+
       this.infoPannel.show();
       this.submitButton.removeAttribute('disabled');
-      setTimeout(() => {
-        this.checkExtension();
-        this.checkSize();
-      }, 0);
+      return value;
     }
   }
 
-  handleChanges(prop, value) {
-    switch (prop) {
-      case 'fileName':
-        this.handleFileName(value);
-        break;
-      case 'file':
-        this.handleFile(value);
-
-        break;
-      case 'formDisabled':
-        if (value) {
-          console.log(this.submitButton);
-        } else {
-        }
-
-      default:
-        console.log('default');
+  handleErrorMessage(value) {
+    if (value) {
+      this.showError(value);
     }
+    return value;
   }
 
-  checkExtension() {
-    if (!/\.(txt|json|csv)/.test(this.data.file?.name || '')) {
-      this.data.file = null;
-      this.showError('Допустимы только расширения .txt, .json и .csv');
+  handleSuccessMessage(value) {
+    if (value) {
+      this.showSuccess(value);
     }
+    return value;
   }
 
-  checkSize() {
-    if (this.data.file.size > 1024) {
-      this.data.file = null;
-      this.showError('Допустимый размер до 1Кб');
+  getBadExtensionMessage(file) {
+    if (!/\.(txt|json|csv)$/.test(file?.name || '')) {
+      return 'Допустимы только расширения .txt, .json и .csv';
     }
+    return '';
+  }
+
+  getBadSizeMessage(file) {
+    if (file?.size > 1024) {
+      return 'Допустимый размер до 1Кб';
+    }
+    return '';
   }
 
   setTooltip(value) {
     this.tooltip.classList.add('transparent');
     setTimeout(() => {
       this.tooltip.innerHTML = value;
-
       this.tooltip.classList.remove('transparent');
     }, 150);
   }
   setTitle(value) {
-    console.log(this.header.classList);
     this.header.classList.add('transparent');
     setTimeout(() => {
       this.header.innerHTML = value;
-
       this.header.classList.remove('transparent');
     }, 150);
   }
@@ -156,13 +170,22 @@ export default class FileCard extends HTMLElement {
   }
 
   hideMessage() {
-    this.form.classList.remove('user-message');
-    this.form.classList.remove('user-error');
     this.setTitle('Окно загрузки');
-    const message = this.data.fileName
-      ? 'Загрузите ваш файл'
-      : 'Перед загрузкой дайте имя файлу';
-    this.setTooltip(message);
+    this.form.classList.remove('user-message');
+
+    if (this.data.successMessage) {
+      this.data.successMessage = '';
+      this.data.file = null;
+      this.data.fileName = '';
+    }
+    if (this.data.errorMessage) {
+      this.data.errorMessage = '';
+      this.form.classList.remove('user-error');
+      const message = this.data.fileName
+        ? 'Загрузите ваш файл'
+        : 'Перед загрузкой дайте имя файлу';
+      this.setTooltip(message);
+    }
   }
 
   initElements() {
@@ -199,27 +222,40 @@ export default class FileCard extends HTMLElement {
   indicateProgress() {
     this.dataPannel.classList.add('sending');
     this.progressIndicator.classList.add('animating');
-    let currentPercents = 0;
-    const interval = setInterval(() => {
-      this.percents.innerHTML = currentPercents + '%';
-      currentPercents += 10;
-      if (currentPercents > 80) {
-        clearInterval(interval);
-      }
-    }, 200);
-  }
-
-  completeProgress() {
-    this.progressIndicator.classList.remove('animating');
-    this.progressIndicator.classList.add('completing');
-    let currentPercents = 80;
-    const interval = setInterval(() => {
-      this.percents.innerHTML = currentPercents + '%';
-      currentPercents += 10;
-      if (currentPercents > 100) {
-        clearInterval(interval);
+    this.startIndicatorInterval = setInterval(() => {
+      this.percents.innerHTML = (this.currentIndicatorPercents || 1) + '%';
+      this.currentIndicatorPercents += 5;
+      if (this.currentIndicatorPercents > 70) {
+        clearInterval(this.startIndicatorInterval);
+        this.continueIndicatorInterval = setInterval(() => {
+          this.currentIndicatorPercents += 1;
+          this.percents.innerHTML = this.currentIndicatorPercents + '%';
+          if (this.currentIndicatorPercents > 95) {
+            clearInterval(this.continueIndicatorInterval);
+            this.percents.classList.remove('animating');
+            this.percents.classList.add('waiting');
+          }
+        }, 900);
       }
     }, 100);
+  }
+
+  async completeProgress(response) {
+    return new Promise((res) => {
+      this.progressIndicator.classList.remove('animating');
+      this.progressIndicator.classList.remove('waiting');
+      this.progressIndicator.classList.add('completing');
+      const lastPersents = 100 - this.currentIndicatorPercents;
+      const interval = setInterval(() => {
+        if (this.currentIndicatorPercents > 100) {
+          this.percents.innerHTML = '100%';
+          clearInterval(interval);
+          res(response);
+        }
+        this.percents.innerHTML = this.currentIndicatorPercents + '%';
+        this.currentIndicatorPercents += 5;
+      }, Math.floor(1000 / (lastPersents / 5)));
+    });
   }
 
   registerEvents() {
@@ -248,8 +284,6 @@ export default class FileCard extends HTMLElement {
         e.stopImmediatePropagation();
         return false;
       }
-      this.data.file = e.target.files[0];
-      this.textInputPannel.hide();
     });
 
     this.form.addEventListener('submit', (e) => {
@@ -282,7 +316,7 @@ export default class FileCard extends HTMLElement {
     this.registerEvents();
   }
 
-  sendFile() {
+  async sendFile() {
     this.form.setAttribute('disabled', '');
     this.submitButton.setAttribute('disabled', '');
     this.fileInput.setAttribute('disabled', '');
@@ -290,37 +324,30 @@ export default class FileCard extends HTMLElement {
     const fd = new FormData();
     fd.append('file', this.data.file, this.fileNameWithExtension);
     fd.append('name', this.fileNameWithExtension);
-    axios
-      .post('https://file-upload-server-mc26.onrender.com/api/v1/upload', fd)
-      .then((response) => {
-        this.completeProgress();
-        const message = `
-          name: ${response.data.name}
-          message: ${response.data.message}
-          timestamp: ${response.data.timestamp}
-        `;
-        setTimeout(() => {
-          this.showSuccess(message);
-          this.data.file = null;
-        this.data.fileName = '';
-        }, 5000);
-        
-      })
-      .catch((e) => {
-        console.log(e);
-        this.showError(e.message);
-      })
-      .finally(() => {
-        setTimeout(() => {
-          this.form.removeAttribute('disabled');
-        this.submitButton.removeAttribute('disabled');
-        this.fileInput.removeAttribute('disabled');
-        this.dataPannel.classList.remove('sending');
-        this.progressIndicator.classList.remove('animating');
-        this.percents.innerHTML = '';
-        }, 10000);
-        
-      });
+
+    try {
+      const response = await axios.post(
+        'https://file-upload-server-mc26.onrender.com/api/v1/upload',
+        fd
+      );
+
+      await this.completeProgress();
+      this.data.successMessage = `
+            name: ${response.data.name}
+            message: ${response.data.message}
+            timestamp: ${response.data.timestamp}
+          `;
+    } catch (e) {
+      this.data.errorMessage = e.response?.data?.message || e.message;
+    } finally {
+      this.form.removeAttribute('disabled');
+      this.submitButton.removeAttribute('disabled');
+      this.fileInput.removeAttribute('disabled');
+      this.dataPannel.classList.remove('sending');
+      this.progressIndicator.classList.remove('animating');
+      this.percents.innerHTML = '';
+      this.currentIndicatorPercents = 0;
+    }
   }
 }
 
