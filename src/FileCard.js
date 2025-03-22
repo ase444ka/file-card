@@ -1,14 +1,6 @@
 import {template} from './template.js';
 import axios from 'axios';
 
-Element.prototype.hide = function () {
-  this.classList.add('hidden');
-};
-
-Element.prototype.show = function () {
-  this.classList.remove('hidden');
-};
-
 function prepareDropzone() {
   const events = ['dragenter', 'dragover', 'dragleave', 'drop'];
   function preventDefaults(e) {
@@ -45,12 +37,22 @@ export default class FileCard extends HTMLElement {
     return `${this.data.fileName}.${this.fileExtension}`;
   }
 
+  show() {
+    this.form.style.transform = 'scaleY(0)';
+  }
+
+  hide() {
+    this.form.style.transform = 'scaleY(1)';
+  }
+
+  // при добавлении элемента в докумет вызывается этот метод, проксируются свойства, требующие наблюдения, рендерится shadow-dom
   connectedCallback() {
     this.makeDataProxy();
     this.shadow = this.attachShadow({mode: 'open'});
     this.render();
   }
 
+  // создание автоматического реагирование на изменение свойств
   makeDataProxy() {
     this.data = new Proxy(this.data, {
       set: (target, prop, value, receiver) => {
@@ -61,10 +63,12 @@ export default class FileCard extends HTMLElement {
     });
   }
 
+  // получение расширения файла из его названия
   getExtension(file) {
     return file?.name?.split('.')?.[1] || '';
   }
 
+  // обработчик проксированных свойств
   handleChanges(prop, value) {
     switch (prop) {
       case 'fileName':
@@ -78,45 +82,66 @@ export default class FileCard extends HTMLElement {
     }
   }
 
+  // вызывается при изменении имени файла
   handleFileName(value) {
     if (value) {
+      // если задано имя, можно позволить пользователю загружать файл
       this.fileInput.removeAttribute('disabled');
-      this.setTooltip('Загрузите ваш файл');
+      this.setTooltip('Перенесите ваш файл в область ниже');
     } else {
+      // если имя файла удалили
       if (!this.data.fileName) {
+        // если мы очищаем пустое поле, ничего не делаем (чтобы подсказка не мигала лишний раз)
         return value;
       }
+      // если очищаем заполненное поле, запрещаем загружать файл, отображаем подсказку
       this.fileInput.setAttribute('disabled', '');
       this.setTooltip('Перед загрузкой дайте имя файлу');
+      // синхронизируем поле ввода файла, очищаем его
       this.textInput.value = '';
+      // удостовериваемся что поле ввода имени файла не скрыто
       this.textInputPannel.show();
     }
     return value;
   }
 
+  //  вызывается при изменении файла для отправки
   handleFile(value) {
-    if (!value) {
+    // скрытие панели с информацией о файле, очистка поля ввода файла, запрет отправки формы
+    const cleanUp = () => {
       this.infoPannel.hide();
       this.fileInput.value = null;
       this.submitButton.setAttribute('disabled', '');
-      return null;
+    };
+    // переменная для записи (или не записи) файла
+    let result = null;
+    if (!value) {
+      // если удалили файл, проводим необходимую очистку
+      cleanUp();
     } else {
+      // проверяем не сформирует ли компонент сообщение об ошибке
       this.data.errorMessage =
         this.getBadExtensionMessage(value) || this.getBadSizeMessage(value);
       if (this.data.errorMessage) {
-        this.fileInput.value = null;
-        return null;
-      }
-      this.nameInfo.innerHTML = `${this.data.fileName}.${this.getExtension(
-        value
-      )}`;
+        // если да, не сохраняем файл,
+        // проводим необходимую очистку
+        cleanUp();
+      } else {
+        // если нет сообщений об ошибке, показываем панель с информацией о файле, разрешаем отправку формы
+        this.nameInfo.innerHTML = `${this.data.fileName}.${this.getExtension(
+          value
+        )}`;
 
-      this.infoPannel.show();
-      this.submitButton.removeAttribute('disabled');
-      return value;
+        this.infoPannel.show();
+        this.submitButton.removeAttribute('disabled');
+        result = value;
+      }
     }
+    // возвращаем файл или пустую переменную
+    return result;
   }
 
+  // если приложение сгенерировало сообщение об ошибке, отображаем его пользователю
   handleErrorMessage(value) {
     if (value) {
       this.showError(value);
@@ -124,6 +149,7 @@ export default class FileCard extends HTMLElement {
     return value;
   }
 
+  // если приложение сгенерировало сообщение об успехе, отображаем его пользователю
   handleSuccessMessage(value) {
     if (value) {
       this.showSuccess(value);
@@ -131,6 +157,7 @@ export default class FileCard extends HTMLElement {
     return value;
   }
 
+  // проверка расширения файла и генерация сообщения об ошибке, если проверка провалилась
   getBadExtensionMessage(file) {
     if (!/\.(txt|json|csv)$/.test(file?.name || '')) {
       return 'Допустимы только расширения .txt, .json и .csv';
@@ -138,6 +165,7 @@ export default class FileCard extends HTMLElement {
     return '';
   }
 
+  // проверка размера файла и генерация сообщения об ошибке, если проверка провалилась
   getBadSizeMessage(file) {
     if (file?.size > 1024) {
       return 'Допустимый размер до 1Кб';
@@ -145,27 +173,33 @@ export default class FileCard extends HTMLElement {
     return '';
   }
 
-  setTooltip(value) {
-    this.tooltip.classList.add('transparent');
+  // плавное изменение текста в элементе
+  smoothTextChange(element, value) {
+    element.classList.add('transparent');
     setTimeout(() => {
-      this.tooltip.innerHTML = value;
-      this.tooltip.classList.remove('transparent');
-    }, 150);
-  }
-  setTitle(value) {
-    this.header.classList.add('transparent');
-    setTimeout(() => {
-      this.header.innerHTML = value;
-      this.header.classList.remove('transparent');
+      element.innerHTML = value;
+      element.classList.remove('transparent');
     }, 150);
   }
 
+  // задание текста подсказки
+  setTooltip(value) {
+    this.smoothTextChange(this.tooltip, value);
+  }
+
+  // задание текста заголовка
+  setTitle(value) {
+    this.smoothTextChange(this.header, value);
+  }
+
+  // отображение уведомления об успехе
   showSuccess(message) {
     this.form.classList.add('user-message');
     this.setTitle('Файл успешно загружен');
     this.setTooltip(message);
   }
 
+  // отображение уведомления об ошибке
   showError(message) {
     this.form.classList.add('user-message');
     this.form.classList.add('user-error');
@@ -173,10 +207,10 @@ export default class FileCard extends HTMLElement {
     this.setTooltip(message);
   }
 
+  // метод для скрытия окна уведомления пользователей об успехе/ошибке
   hideMessage() {
     this.setTitle('Окно загрузки');
     this.form.classList.remove('user-message');
-
     if (this.data.successMessage) {
       this.data.successMessage = '';
       this.data.file = null;
@@ -187,19 +221,27 @@ export default class FileCard extends HTMLElement {
       this.form.classList.remove('user-error');
       const message = this.data.fileName
         ? 'Загрузите ваш файл'
-        : 'Перед загрузкой дайте имя файлу';
+        : 'Перенесите ваш файл в область ниже';
       this.setTooltip(message);
     }
   }
 
+  // задаю имена эленентам в макете, для удобства обращения + создаю методы для их удобного скрытия / показа
   initElements() {
+    Element.prototype.hide = function () {
+      this.classList.add('hidden');
+    };
+
+    Element.prototype.show = function () {
+      this.classList.remove('hidden');
+    };
+
     this.fileInput = this.shadowRoot.querySelector('.file-card__file-input');
     this.form = this.shadowRoot.querySelector('.file-card__form');
     this.textInput = this.shadowRoot.querySelector('.file-card__input');
     this.clearTextButton = this.shadowRoot.querySelector(
       '.file-card__clear-input'
     );
-
     this.textInputPannel = this.shadowRoot.querySelector(
       '.file-card__input-wrapper'
     );
@@ -276,7 +318,6 @@ export default class FileCard extends HTMLElement {
         }
         if (!this.data.fileName) {
           this.attractAttention();
-
           return;
         }
         this.data.file = e.dataTransfer.files[0];
@@ -322,13 +363,22 @@ export default class FileCard extends HTMLElement {
     });
 
     this.closeButton.addEventListener('click', () => {
-      this.hideMessage();
+      if (this.data.successMessage || this.data.errorMessage) {
+        this.hideMessage();
+      } else {
+        this.shadowRoot.dispatchEvent(
+          new CustomEvent('close', {
+            bubbles: true,
+            composed: true,
+            detail: 'composed',
+          })
+        );
+      }
     });
   }
 
   render() {
     this.shadow.innerHTML = template;
-
     this.initElements();
     this.registerEvents();
   }
@@ -342,14 +392,12 @@ export default class FileCard extends HTMLElement {
     this.tooltip.addEventListener('animationend', handleAnimationEnd, {
       once: true,
     });
-    
   }
 
   clearIndicator() {
     if (this.currentIndicatorInterval) {
       clearInterval(this.currentIndicatorInterval);
     }
-
     this.currentIndicatorPercents = 0;
   }
 
