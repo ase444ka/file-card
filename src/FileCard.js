@@ -83,6 +83,9 @@ export default class FileCard extends HTMLElement {
       this.fileInput.removeAttribute('disabled');
       this.setTooltip('Загрузите ваш файл');
     } else {
+      if (!this.data.fileName) {
+        return value;
+      }
       this.fileInput.setAttribute('disabled', '');
       this.setTooltip('Перед загрузкой дайте имя файлу');
       this.textInput.value = '';
