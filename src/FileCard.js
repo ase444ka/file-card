@@ -12,9 +12,15 @@ function prepareDropzone() {
   });
 }
 
+// получение расширения файла из его названия
+function getExtension(file) {
+  return file?.name?.split('.')?.[1] || '';
+}
+
 export default class FileCard extends HTMLElement {
   constructor() {
     super();
+    // данные, за изменениями которых надо следить
     this.data = {
       fileName: '',
       file: null,
@@ -22,41 +28,20 @@ export default class FileCard extends HTMLElement {
       successMessage: '',
     };
 
+    // данные для индикации процесса отправки
     this.currentIndicatorInterval = null;
     this.currentIndicatorPercents = 0;
 
+    // подготовка к возможности реализации процедуры drug-n-drop
     prepareDropzone();
-    window.test = this;
   }
 
-  static get observedAttributes() {
-    return ['opened'];
-  }
-
-  attributeChangedCallback(name, _, value) {
-    if (name === 'opened') {
-      if (value === '') {
-        this.show();
-      } else {
-        this.hide();
-      }
-    }
-  }
-
+  // пара простеньких геттеров для удобства
   get fileExtension() {
-    return this.getExtension(this.data.file);
+    return getExtension(this.data.file);
   }
-
   get fileNameWithExtension() {
     return `${this.data.fileName}.${this.fileExtension}`;
-  }
-
-  show() {
-    this.form.classList.add('showing');
-  }
-
-  hide() {
-    this.form.classList.remove('showing');
   }
 
   // при добавлении элемента в докумет вызывается этот метод, проксируются свойства, требующие наблюдения, рендерится shadow-dom
@@ -77,171 +62,14 @@ export default class FileCard extends HTMLElement {
     });
   }
 
-  // получение расширения файла из его названия
-  getExtension(file) {
-    return file?.name?.split('.')?.[1] || '';
-  }
-
-  // обработчик проксированных свойств
-  handleChanges(prop, value) {
-    switch (prop) {
-      case 'fileName':
-        return this.handleFileName(value);
-      case 'file':
-        return this.handleFile(value);
-      case 'errorMessage':
-        return this.handleErrorMessage(value);
-      case 'successMessage':
-        return this.handleSuccessMessage(value);
+    // рендер компонента
+    render() {
+      this.shadow.innerHTML = template;
+      this.initElements();
+      this.registerEvents();
     }
-  }
 
-  // вызывается при изменении имени файла
-  handleFileName(value) {
-    if (value) {
-      // если задано имя, можно позволить пользователю загружать файл
-      this.fileInput.removeAttribute('disabled');
-      this.setTooltip('Перенесите ваш файл в область ниже');
-    } else {
-      // если имя файла удалили
-      if (!this.data.fileName) {
-        // если мы очищаем пустое поле, ничего не делаем (чтобы подсказка не мигала лишний раз)
-        return value;
-      }
-      // если очищаем заполненное поле, запрещаем загружать файл, отображаем подсказку
-      this.fileInput.setAttribute('disabled', '');
-      this.setTooltip('Перед загрузкой дайте имя файлу');
-      // синхронизируем поле ввода файла, очищаем его
-      this.textInput.value = '';
-      // удостовериваемся что поле ввода имени файла не скрыто
-      this.textInputPannel.show();
-    }
-    return value;
-  }
-
-  //  вызывается при изменении файла для отправки
-  handleFile(value) {
-    // скрытие панели с информацией о файле, очистка поля ввода файла, запрет отправки формы
-    const cleanUp = () => {
-      this.infoPannel.hide();
-      this.fileInput.value = null;
-      this.submitButton.setAttribute('disabled', '');
-    };
-    // переменная для записи (или не записи) файла
-    let result = null;
-    if (!value) {
-      // если удалили файл, проводим необходимую очистку
-      cleanUp();
-    } else {
-      // проверяем не сформирует ли компонент сообщение об ошибке
-      this.data.errorMessage =
-        this.getBadExtensionMessage(value) || this.getBadSizeMessage(value);
-      if (this.data.errorMessage) {
-        // если да, не сохраняем файл,
-        // проводим необходимую очистку
-        cleanUp();
-      } else {
-        // если нет сообщений об ошибке, показываем панель с информацией о файле,
-        // разрешаем отправку формы, сохраняем файл, скрываем поле ввода имени файла
-        this.nameInfo.innerHTML = `${this.data.fileName}.${this.getExtension(
-          value
-        )}`;
-        this.textInputPannel.hide();
-        this.infoPannel.show();
-        this.submitButton.removeAttribute('disabled');
-        result = value;
-      }
-    }
-    // возвращаем файл или пустую переменную
-    return result;
-  }
-
-  // если приложение сгенерировало сообщение об ошибке, отображаем его пользователю
-  handleErrorMessage(value) {
-    if (value) {
-      this.showError(value);
-    }
-    return value;
-  }
-
-  // если приложение сгенерировало сообщение об успехе, отображаем его пользователю
-  handleSuccessMessage(value) {
-    if (value) {
-      this.showSuccess(value);
-    }
-    return value;
-  }
-
-  // проверка расширения файла и генерация сообщения об ошибке, если проверка провалилась
-  getBadExtensionMessage(file) {
-    if (!/\.(txt|json|csv)$/.test(file?.name || '')) {
-      return 'Допустимы только расширения .txt, .json и .csv';
-    }
-    return '';
-  }
-
-  // проверка размера файла и генерация сообщения об ошибке, если проверка провалилась
-  getBadSizeMessage(file) {
-    if (file?.size > 1024) {
-      return 'Допустимый размер до 1Кб';
-    }
-    return '';
-  }
-
-  // плавное изменение текста в элементе
-  smoothTextChange(element, value) {
-    element.classList.add('transparent');
-    setTimeout(() => {
-      element.innerHTML = value;
-      element.classList.remove('transparent');
-    }, 150);
-  }
-
-  // задание текста подсказки
-  setTooltip(value) {
-    this.smoothTextChange(this.tooltip, value);
-  }
-
-  // задание текста заголовка
-  setTitle(value) {
-    this.smoothTextChange(this.header, value);
-  }
-
-  // отображение уведомления об успехе
-  showSuccess(message) {
-    this.form.classList.add('user-message');
-    this.setTitle('Файл успешно загружен');
-    this.setTooltip(message);
-  }
-
-  // отображение уведомления об ошибке
-  showError(message) {
-    this.form.classList.add('user-message');
-    this.form.classList.add('user-error');
-    this.setTitle('Ошибка загрузки');
-    this.setTooltip(message);
-  }
-
-  // метод для скрытия окна уведомления пользователей об успехе/ошибке
-  hideMessage() {
-    this.setTitle('Окно загрузки');
-    this.form.classList.remove('user-message');
-    if (this.data.successMessage) {
-      this.data.successMessage = '';
-      this.data.file = null;
-      this.data.fileName = '';
-    }
-    if (this.data.errorMessage) {
-      this.data.errorMessage = '';
-      this.form.classList.remove('user-error');
-      const message = this.data.fileName
-        ? 'Загрузите ваш файл'
-        : 'Перенесите ваш файл в область ниже';
-      this.setTooltip(message);
-    }
-  }
-
-  // присвоение имен эленентам макета, для удобства обращения + создание методов для их удобного скрытия / показа
+    // присвоение имен эленентам макета, для удобства обращения + создание методов для их удобного скрытия / показа
   initElements() {
     Element.prototype.hide = function () {
       this.classList.add('hidden');
@@ -278,60 +106,6 @@ export default class FileCard extends HTMLElement {
     );
     this.dataPannel = this.shadowRoot.querySelector('.file-card__data');
     this.percents = this.shadowRoot.querySelector('.file-card__percents');
-  }
-
-  // отображение прогресса отправки файла проходит в 3 этапа, это первые два
-  indicateProgress() {
-    // до 70% анимируем прогресс быстро, потом ползунок ползет медленнее
-    // (реализовано в css). класс sending показывает ползунок и блокирует кнопку удаления файла
-    // класс animating отображает анимации
-    this.dataPannel.classList.add('sending');
-    this.progressIndicator.classList.add('animating');
-    this.currentIndicatorInterval = setInterval(() => {
-      this.percents.innerHTML = (this.currentIndicatorPercents || 1) + '%';
-      this.currentIndicatorPercents += 5;
-      if (this.currentIndicatorPercents > 70) {
-        this.currentIndicatorPercents = 71;
-        clearInterval(this.currentIndicatorInterval);
-        this.currentIndicatorInterval = setInterval(() => {
-          this.currentIndicatorPercents += 1;
-          this.percents.innerHTML = this.currentIndicatorPercents + '%';
-          // если ползунок дополз до 95%, но сервер еще ничего не ответил
-          // ползунок принимает вид наподобие скелетона (класс waiting)
-          if (this.currentIndicatorPercents > 94) {
-            clearInterval(this.currentIndicatorInterval);
-            this.progressIndicator.classList.remove('animating');
-            this.progressIndicator.classList.add('waiting');
-          }
-        }, 900);
-      }
-    }, 100);
-  }
-
-  // метод вызывается когда сервер прислал ответ, чтобы довести ползунок до конца
-  async completeProgress(response) {
-    clearInterval(this.currentIndicatorInterval);
-    return new Promise((res) => {
-      // добавляем новый класс для новой анимации, старые удаляем
-      this.progressIndicator.classList.remove('animating');
-      this.progressIndicator.classList.remove('waiting');
-      this.progressIndicator.classList.add('completing');
-      const lastPersents = 100 - this.currentIndicatorPercents;
-      // отображаем бег процентов с расчетом скорости, учитывая сколько осталось процентов, в течение секунды
-      this.currentIndicatorInterval = setInterval(() => {
-        this.percents.innerHTML = this.currentIndicatorPercents + '%';
-        this.currentIndicatorPercents += 1;
-        if (this.currentIndicatorPercents > 100) {
-          this.percents.innerHTML = '100%';
-          clearInterval(this.currentIndicatorInterval);
-          this.currentIndicatorInterval = null;
-          // отображаем в течение 300мс результат 100% и после резольвим ответ сервера для дальнейших действий
-          setTimeout(() => {
-            res(response);
-          }, 300);
-        }
-      }, Math.floor(1000 / lastPersents));
-    });
   }
 
   // регистрируем события
@@ -407,12 +181,176 @@ export default class FileCard extends HTMLElement {
     });
   }
 
-  // рендер компонента
-  render() {
-    this.shadow.innerHTML = template;
-    this.initElements();
-    this.registerEvents();
+  
+
+  // обработчик проксированных свойств
+  handleChanges(prop, value) {
+    switch (prop) {
+      case 'fileName':
+        return this.handleFileName(value);
+      case 'file':
+        return this.handleFile(value);
+      case 'errorMessage':
+        return this.handleErrorMessage(value);
+      case 'successMessage':
+        return this.handleSuccessMessage(value);
+    }
   }
+
+
+  // вызывается при изменении имени файла
+  handleFileName(value) {
+    if (value) {
+      // если задано имя, можно позволить пользователю загружать файл
+      this.fileInput.removeAttribute('disabled');
+      this.setTooltip('Перенесите ваш файл в область ниже');
+    } else {
+      // если имя файла удалили
+      if (!this.data.fileName) {
+        // если мы очищаем пустое поле, ничего не делаем (чтобы подсказка не мигала лишний раз)
+        return value;
+      }
+      // если очищаем заполненное поле, запрещаем загружать файл, отображаем подсказку
+      this.fileInput.setAttribute('disabled', '');
+      this.setTooltip('Перед загрузкой дайте имя файлу');
+      // синхронизируем поле ввода файла, очищаем его
+      this.textInput.value = '';
+      // удостовериваемся что поле ввода имени файла не скрыто
+      this.textInputPannel.show();
+    }
+    return value;
+  }
+
+  //  вызывается при изменении файла для отправки
+  handleFile(value) {
+    // скрытие панели с информацией о файле, очистка поля ввода файла, запрет отправки формы
+    const cleanUp = () => {
+      this.infoPannel.hide();
+      this.fileInput.value = null;
+      this.submitButton.setAttribute('disabled', '');
+    };
+    // переменная для записи (или не записи) файла
+    let result = null;
+    if (!value) {
+      // если удалили файл, проводим необходимую очистку
+      cleanUp();
+    } else {
+      // проверяем не сформирует ли компонент сообщение об ошибке
+      this.data.errorMessage =
+        this.getBadExtensionMessage(value) || this.getBadSizeMessage(value);
+      if (this.data.errorMessage) {
+        // если да, не сохраняем файл,
+        // проводим необходимую очистку
+        cleanUp();
+      } else {
+        // если нет сообщений об ошибке, показываем панель с информацией о файле,
+        // разрешаем отправку формы, сохраняем файл, скрываем поле ввода имени файла
+        this.nameInfo.innerHTML = `${this.data.fileName}.${getExtension(
+          value
+        )}`;
+        this.textInputPannel.hide();
+        this.infoPannel.show();
+        this.submitButton.removeAttribute('disabled');
+        result = value;
+      }
+    }
+    // возвращаем файл или пустую переменную
+    return result;
+  }
+
+  // если приложение сгенерировало сообщение об ошибке, отображаем его пользователю
+  handleErrorMessage(value) {
+    if (value) {
+      this.showError(value);
+    }
+    return value;
+  }
+
+  // если приложение сгенерировало сообщение об успехе, отображаем его пользователю
+  handleSuccessMessage(value) {
+    if (value) {
+      this.showSuccess(value);
+    }
+    return value;
+  }
+
+  // проверка расширения файла и генерация сообщения об ошибке, если проверка провалилась
+  getBadExtensionMessage(file) {
+    if (!/\.(txt|json|csv)$/.test(file?.name || '')) {
+      return 'Допустимы только расширения .txt, .json и .csv';
+    }
+    return '';
+  }
+
+  // проверка размера файла и генерация сообщения об ошибке, если проверка провалилась
+  getBadSizeMessage(file) {
+    if (file?.size > 1024) {
+      return 'Допустимый размер до 1Кб';
+    }
+    return '';
+  }
+
+    // задание текста подсказки
+    setTooltip(value) {
+      this.smoothTextChange(this.tooltip, value);
+    }
+  
+    // задание текста заголовка
+    setTitle(value) {
+      this.smoothTextChange(this.header, value);
+    }
+
+  // плавное изменение текста в элементе
+  smoothTextChange(element, value) {
+    element.classList.add('transparent');
+    setTimeout(() => {
+      element.innerHTML = value;
+      element.classList.remove('transparent');
+    }, 150);
+  }
+
+
+
+  // отображение уведомления об успехе
+  showSuccess(message) {
+    this.form.classList.add('user-message');
+    this.setTitle('Файл успешно загружен');
+    this.setTooltip(message);
+  }
+
+  // отображение уведомления об ошибке
+  showError(message) {
+    this.form.classList.add('user-message');
+    this.form.classList.add('user-error');
+    this.setTitle('Ошибка загрузки');
+    this.setTooltip(message);
+  }
+
+  // метод для скрытия окна уведомления пользователей об успехе/ошибке
+  hideMessage() {
+    this.setTitle('Окно загрузки');
+    this.form.classList.remove('user-message');
+    if (this.data.successMessage) {
+      this.data.successMessage = '';
+      this.data.file = null;
+      this.data.fileName = '';
+    }
+    if (this.data.errorMessage) {
+      this.data.errorMessage = '';
+      this.form.classList.remove('user-error');
+      const message = this.data.fileName
+        ? 'Загрузите ваш файл'
+        : 'Перенесите ваш файл в область ниже';
+      this.setTooltip(message);
+    }
+  }
+
+  
+
+  
+
+  
+
 
   // привлечение внимания пользователя к подсказке
   attractAttention() {
@@ -423,6 +361,89 @@ export default class FileCard extends HTMLElement {
     this.tooltip.classList.add('animate__headShake');
     this.tooltip.addEventListener('animationend', handleAnimationEnd, {
       once: true,
+    });
+  }
+
+  
+
+  async sendFile() {
+    // подготовка интерфейса к отправке
+    this.indicateProgress();
+    this.disableAll();
+    // подготовка данных для отправки
+    const fd = new FormData();
+    fd.append('file', this.data.file, this.fileNameWithExtension);
+    fd.append('name', this.fileNameWithExtension);
+
+    // попытка отправки
+    try {
+      const response = await axios.post(
+        'https://file-upload-server-mc26.onrender.com/api/v1/upload',
+        fd
+      );
+      // когда пришел ответ, "доползаем ползунок"
+      await this.completeProgress();
+      // и выводим сообщение об успехе
+      this.data.successMessage = `name: ${response.data.name}\nmessage: ${response.data.message}\ntimestamp: ${response.data.timestamp}`;
+    } catch (e) {
+      // в случае ошибки, не ждем ползунок, выводим сообщение об ошибке
+      this.data.errorMessage = e.response?.data?.error || e.message;
+    } finally {
+      this.finalCleanup();
+    }
+  }
+
+  // отображение прогресса отправки файла проходит в 3 этапа, это первые два
+  indicateProgress() {
+    // до 70% анимируем прогресс быстро, потом ползунок ползет медленнее
+    // (реализовано в css). класс sending показывает ползунок и блокирует кнопку удаления файла
+    // класс animating отображает анимации
+    this.dataPannel.classList.add('sending');
+    this.progressIndicator.classList.add('animating');
+    this.currentIndicatorInterval = setInterval(() => {
+      this.percents.innerHTML = (this.currentIndicatorPercents || 1) + '%';
+      this.currentIndicatorPercents += 5;
+      if (this.currentIndicatorPercents > 70) {
+        this.currentIndicatorPercents = 71;
+        clearInterval(this.currentIndicatorInterval);
+        this.currentIndicatorInterval = setInterval(() => {
+          this.currentIndicatorPercents += 1;
+          this.percents.innerHTML = this.currentIndicatorPercents + '%';
+          // если ползунок дополз до 95%, но сервер еще ничего не ответил
+          // ползунок принимает вид наподобие скелетона (класс waiting)
+          if (this.currentIndicatorPercents > 94) {
+            clearInterval(this.currentIndicatorInterval);
+            this.progressIndicator.classList.remove('animating');
+            this.progressIndicator.classList.add('waiting');
+          }
+        }, 900);
+      }
+    }, 100);
+  }
+
+  // метод вызывается когда сервер прислал ответ, чтобы довести ползунок до конца
+  async completeProgress(response) {
+    clearInterval(this.currentIndicatorInterval);
+    return new Promise((res) => {
+      // добавляем новый класс для новой анимации, старые удаляем
+      this.progressIndicator.classList.remove('animating');
+      this.progressIndicator.classList.remove('waiting');
+      this.progressIndicator.classList.add('completing');
+      const lastPersents = 100 - this.currentIndicatorPercents;
+      // отображаем бег процентов с расчетом скорости, учитывая сколько осталось процентов, в течение секунды
+      this.currentIndicatorInterval = setInterval(() => {
+        this.percents.innerHTML = this.currentIndicatorPercents + '%';
+        this.currentIndicatorPercents += 1;
+        if (this.currentIndicatorPercents > 100) {
+          this.percents.innerHTML = '100%';
+          clearInterval(this.currentIndicatorInterval);
+          this.currentIndicatorInterval = null;
+          // отображаем в течение 300мс результат 100% и после резольвим ответ сервера для дальнейших действий
+          setTimeout(() => {
+            res(response);
+          }, 300);
+        }
+      }, Math.floor(1000 / lastPersents));
     });
   }
 
@@ -459,33 +480,6 @@ export default class FileCard extends HTMLElement {
     this.submitButton.setAttribute('disabled', '');
     this.fileInput.setAttribute('disabled', '');
     this.closeButton.setAttribute('disabled', '');
-  }
-
-  async sendFile() {
-    // подготовка интерфейса к отправке
-    this.indicateProgress();
-    this.disableAll();
-    // подготовка данных для отправки
-    const fd = new FormData();
-    fd.append('file', this.data.file, this.fileNameWithExtension);
-    fd.append('name', this.fileNameWithExtension);
-
-    // попытка отправки
-    try {
-      const response = await axios.post(
-        'https://file-upload-server-mc26.onrender.com/api/v1/upload',
-        fd
-      );
-      // когда пришел ответ, "доползаем ползунок"
-      await this.completeProgress();
-      // и выводим сообщение об успехе
-      this.data.successMessage = `name: ${response.data.name}\nmessage: ${response.data.message}\ntimestamp: ${response.data.timestamp}`;
-    } catch (e) {
-      // в случае ошибки, не ждем ползунок, выводим сообщение об ошибке
-      this.data.errorMessage = e.response?.data?.error || e.message;
-    } finally {
-      this.finalCleanup();
-    }
   }
 }
 
