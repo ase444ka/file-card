@@ -1,14 +1,16 @@
 import nestedStyle from './FileCard.css?inline';
 import postcss from 'postcss';
+import nestedAnimate from 'animate.css?inline'
 
 const parsed = postcss.parse(nestedStyle);
+const parsedAnimations = postcss.parse(nestedAnimate)
 
 const spriteURL = new URL('@/assets/images/sprites.svg#cross', import.meta.url)
   .href;
 const dropzoneImgURL = new URL('@/assets/images/dropzone.svg', import.meta.url)
   .href;
 export const template = /*jsx*/ `
-<style>${parsed}</style>
+<style>${parsed}${parsedAnimations}</style>
 
 <div class="file-card">
   

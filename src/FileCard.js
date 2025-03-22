@@ -38,7 +38,7 @@ export default class FileCard extends HTMLElement {
   }
 
   get fileExtension() {
-    return this.getExtension(this.data.file)
+    return this.getExtension(this.data.file);
   }
 
   get fileNameWithExtension() {
@@ -62,7 +62,7 @@ export default class FileCard extends HTMLElement {
   }
 
   getExtension(file) {
-    return file?.name?.split('.')?.[1] || ''
+    return file?.name?.split('.')?.[1] || '';
   }
 
   handleChanges(prop, value) {
@@ -104,7 +104,9 @@ export default class FileCard extends HTMLElement {
         this.fileInput.value = null;
         return null;
       }
-      this.nameInfo.innerHTML = `${this.data.fileName}.${this.getExtension(value)}`;
+      this.nameInfo.innerHTML = `${this.data.fileName}.${this.getExtension(
+        value
+      )}`;
 
       this.infoPannel.show();
       this.submitButton.removeAttribute('disabled');
@@ -248,7 +250,6 @@ export default class FileCard extends HTMLElement {
       this.progressIndicator.classList.add('completing');
       const lastPersents = 100 - this.currentIndicatorPercents;
       this.currentIndicatorInterval = setInterval(() => {
-        
         this.percents.innerHTML = this.currentIndicatorPercents + '%';
         this.currentIndicatorPercents += 1;
         if (this.currentIndicatorPercents > 100) {
@@ -257,12 +258,11 @@ export default class FileCard extends HTMLElement {
           this.currentIndicatorInterval = null;
           setTimeout(() => {
             res(response);
-          }, 300)
-          
+          }, 300);
         }
       }, Math.floor(1000 / lastPersents));
     });
-  } 
+  }
 
   registerEvents() {
     this.dropzone.addEventListener(
@@ -272,6 +272,8 @@ export default class FileCard extends HTMLElement {
           return;
         }
         if (!this.data.fileName) {
+          this.attractAttention();
+
           return;
         }
         this.data.file = e.dataTransfer.files[0];
@@ -280,16 +282,22 @@ export default class FileCard extends HTMLElement {
       false
     );
 
+    this.dropzone.addEventListener(
+      'click',
+      (e) => {
+        if (this.form.hasAttribute('disabled')) {
+          return;
+        }
+        if (!this.data.fileName) {
+          this.attractAttention();
+        }
+      },
+      false
+    );
+
     this.fileInput.addEventListener('change', (e) => {
       this.data.file = e.target.files[0];
       this.textInputPannel.hide();
-    });
-
-    this.fileInput.addEventListener('click', (e) => {
-      if (this.form.hasAttribute('disabled')) {
-        e.stopImmediatePropagation();
-        return false;
-      }
     });
 
     this.form.addEventListener('submit', (e) => {
@@ -322,11 +330,23 @@ export default class FileCard extends HTMLElement {
     this.registerEvents();
   }
 
+  attractAttention() {
+    const handleAnimationEnd = (event) => {
+      event.stopPropagation();
+      this.tooltip.classList.remove('animate__headShake');
+    };
+    this.tooltip.classList.add('animate__headShake');
+    this.tooltip.addEventListener('animationend', handleAnimationEnd, {
+      once: true,
+    });
+    
+  }
+
   clearIndicator() {
     if (this.currentIndicatorInterval) {
-      clearInterval(this.currentIndicatorInterval)
+      clearInterval(this.currentIndicatorInterval);
     }
-    
+
     this.currentIndicatorPercents = 0;
   }
 
@@ -349,9 +369,9 @@ export default class FileCard extends HTMLElement {
       this.data.successMessage = `name: ${response.data.name}\nmessage: ${response.data.message}\ntimestamp: ${response.data.timestamp}`;
     } catch (e) {
       this.data.errorMessage = e.response?.data?.error || e.message;
-      this.clearIndicator()
+      this.clearIndicator();
     } finally {
-      this.clearIndicator()
+      this.clearIndicator();
       this.form.removeAttribute('disabled');
       this.submitButton.removeAttribute('disabled');
       this.fileInput.removeAttribute('disabled');
