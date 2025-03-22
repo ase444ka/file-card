@@ -1,5 +1,5 @@
 import '@/assets/style.css';
-import FileCard from '@/FileCard.js'
+import FileCard from '@/FileCard'
 
 
 

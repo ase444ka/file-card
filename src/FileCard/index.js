@@ -28,6 +28,9 @@ export default class FileCard extends HTMLElement {
       successMessage: '',
     };
 
+    // html-шаблон
+    this.template = template
+
     // данные для индикации процесса отправки
     this.currentIndicatorInterval = null;
     this.currentIndicatorPercents = 0;
@@ -64,7 +67,7 @@ export default class FileCard extends HTMLElement {
 
     // рендер компонента
     render() {
-      this.shadow.innerHTML = template;
+      this.shadow.innerHTML = this.template;
       this.initElements();
       this.registerEvents();
     }
