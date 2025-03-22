@@ -29,6 +29,20 @@ export default class FileCard extends HTMLElement {
     window.test = this;
   }
 
+  static get observedAttributes() {
+    return ['opened'];
+  }
+
+  attributeChangedCallback(name, _, value) {
+    if (name === 'opened') {
+      if (value === '') {
+        this.show();
+      } else {
+        this.hide();
+      }
+    }
+  }
+
   get fileExtension() {
     return this.getExtension(this.data.file);
   }
@@ -38,11 +52,11 @@ export default class FileCard extends HTMLElement {
   }
 
   show() {
-    this.form.style.transform = 'scaleY(0)';
+    this.form.classList.add('showing');
   }
 
   hide() {
-    this.form.style.transform = 'scaleY(1)';
+    this.form.classList.remove('showing');
   }
 
   // при добавлении элемента в докумет вызывается этот метод, проксируются свойства, требующие наблюдения, рендерится shadow-dom
@@ -127,11 +141,12 @@ export default class FileCard extends HTMLElement {
         // проводим необходимую очистку
         cleanUp();
       } else {
-        // если нет сообщений об ошибке, показываем панель с информацией о файле, разрешаем отправку формы
+        // если нет сообщений об ошибке, показываем панель с информацией о файле,
+        // разрешаем отправку формы, сохраняем файл, скрываем поле ввода имени файла
         this.nameInfo.innerHTML = `${this.data.fileName}.${this.getExtension(
           value
         )}`;
-
+        this.textInputPannel.hide();
         this.infoPannel.show();
         this.submitButton.removeAttribute('disabled');
         result = value;
@@ -226,7 +241,7 @@ export default class FileCard extends HTMLElement {
     }
   }
 
-  // задаю имена эленентам в макете, для удобства обращения + создаю методы для их удобного скрытия / показа
+  // присвоение имен эленентам макета, для удобства обращения + создание методов для их удобного скрытия / показа
   initElements() {
     Element.prototype.hide = function () {
       this.classList.add('hidden');
@@ -265,7 +280,11 @@ export default class FileCard extends HTMLElement {
     this.percents = this.shadowRoot.querySelector('.file-card__percents');
   }
 
+  // отображение прогресса отправки файла проходит в 3 этапа, это первые два
   indicateProgress() {
+    // до 70% анимируем прогресс быстро, потом ползунок ползет медленнее
+    // (реализовано в css). класс sending показывает ползунок и блокирует кнопку удаления файла
+    // класс animating отображает анимации
     this.dataPannel.classList.add('sending');
     this.progressIndicator.classList.add('animating');
     this.currentIndicatorInterval = setInterval(() => {
@@ -277,7 +296,9 @@ export default class FileCard extends HTMLElement {
         this.currentIndicatorInterval = setInterval(() => {
           this.currentIndicatorPercents += 1;
           this.percents.innerHTML = this.currentIndicatorPercents + '%';
-          if (this.currentIndicatorPercents > 95) {
+          // если ползунок дополз до 95%, но сервер еще ничего не ответил
+          // ползунок принимает вид наподобие скелетона (класс waiting)
+          if (this.currentIndicatorPercents > 94) {
             clearInterval(this.currentIndicatorInterval);
             this.progressIndicator.classList.remove('animating');
             this.progressIndicator.classList.add('waiting');
@@ -287,13 +308,16 @@ export default class FileCard extends HTMLElement {
     }, 100);
   }
 
+  // метод вызывается когда сервер прислал ответ, чтобы довести ползунок до конца
   async completeProgress(response) {
     clearInterval(this.currentIndicatorInterval);
     return new Promise((res) => {
+      // добавляем новый класс для новой анимации, старые удаляем
       this.progressIndicator.classList.remove('animating');
       this.progressIndicator.classList.remove('waiting');
       this.progressIndicator.classList.add('completing');
       const lastPersents = 100 - this.currentIndicatorPercents;
+      // отображаем бег процентов с расчетом скорости, учитывая сколько осталось процентов, в течение секунды
       this.currentIndicatorInterval = setInterval(() => {
         this.percents.innerHTML = this.currentIndicatorPercents + '%';
         this.currentIndicatorPercents += 1;
@@ -301,6 +325,7 @@ export default class FileCard extends HTMLElement {
           this.percents.innerHTML = '100%';
           clearInterval(this.currentIndicatorInterval);
           this.currentIndicatorInterval = null;
+          // отображаем в течение 300мс результат 100% и после резольвим ответ сервера для дальнейших действий
           setTimeout(() => {
             res(response);
           }, 300);
@@ -309,7 +334,9 @@ export default class FileCard extends HTMLElement {
     });
   }
 
+  // регистрируем события
   registerEvents() {
+    // сохранение файла из дропзоны, если не задано имя, не сохраняем файл, привлекаем внимание пользователя
     this.dropzone.addEventListener(
       'drop',
       (e) => {
@@ -321,17 +348,15 @@ export default class FileCard extends HTMLElement {
           return;
         }
         this.data.file = e.dataTransfer.files[0];
-        this.textInputPannel.hide();
       },
       false
     );
 
+    // если пользователь хочет выбрать файл из файловой системы через интерфейс файл-инпута,
+    // если нет имени файла, привлекаем внимание пользователя, что его надо задать
     this.dropzone.addEventListener(
       'click',
       (e) => {
-        if (this.form.hasAttribute('disabled')) {
-          return;
-        }
         if (!this.data.fileName) {
           this.attractAttention();
         }
@@ -339,29 +364,34 @@ export default class FileCard extends HTMLElement {
       false
     );
 
+    // сохранение файла через интерфейс файл-инпута
     this.fileInput.addEventListener('change', (e) => {
       this.data.file = e.target.files[0];
-      this.textInputPannel.hide();
     });
 
+    //  отправка файла на сабмит
     this.form.addEventListener('submit', (e) => {
       e.preventDefault();
       this.sendFile();
     });
 
+    // сохранение названия файла
     this.textInput.addEventListener('change', (e) => {
       this.data.fileName = e.currentTarget.value;
     });
 
+    // очистка названия файла
     this.clearTextButton.addEventListener('click', (e) => {
       this.data.fileName = '';
     });
 
+    // очистка названия файла и файла
     this.deleteAllButton.addEventListener('click', () => {
       this.data.file = null;
       this.data.fileName = '';
     });
 
+    // скрытие сообщение об успехе/ошибке, или эмит компонентом события 'close'
     this.closeButton.addEventListener('click', () => {
       if (this.data.successMessage || this.data.errorMessage) {
         this.hideMessage();
@@ -377,12 +407,14 @@ export default class FileCard extends HTMLElement {
     });
   }
 
+  // рендер компонента
   render() {
     this.shadow.innerHTML = template;
     this.initElements();
     this.registerEvents();
   }
 
+  // привлечение внимания пользователя к подсказке
   attractAttention() {
     const handleAnimationEnd = (event) => {
       event.stopPropagation();
@@ -394,43 +426,65 @@ export default class FileCard extends HTMLElement {
     });
   }
 
+  // очистка индикатора процентов загрузки: остановка таймера, если он запущен, очистка
+  // поля с процентами, снятие всех стилей загрузки
   clearIndicator() {
     if (this.currentIndicatorInterval) {
       clearInterval(this.currentIndicatorInterval);
     }
     this.currentIndicatorPercents = 0;
+    this.percents.innerHTML = '';
+
+    this.progressIndicator.classList.remove('animating');
+    this.progressIndicator.classList.remove('waiting');
+    this.progressIndicator.classList.remove('completing');
   }
 
-  async sendFile() {
+  // очистка всего после попытки отправки файла
+  finalCleanup() {
+    // очистка индикатора загрузки
+    this.clearIndicator();
+
+    // разблокировка кнопок и инпутов
+    this.form.removeAttribute('disabled');
+    this.submitButton.removeAttribute('disabled');
+    this.closeButton.removeAttribute('disabled', '');
+    this.fileInput.removeAttribute('disabled');
+    this.dataPannel.classList.remove('sending');
+  }
+
+  // блокировка всего на время отправки
+  disableAll() {
     this.form.setAttribute('disabled', '');
     this.submitButton.setAttribute('disabled', '');
     this.fileInput.setAttribute('disabled', '');
+    this.closeButton.setAttribute('disabled', '');
+  }
+
+  async sendFile() {
+    // подготовка интерфейса к отправке
     this.indicateProgress();
+    this.disableAll();
+    // подготовка данных для отправки
     const fd = new FormData();
     fd.append('file', this.data.file, this.fileNameWithExtension);
     fd.append('name', this.fileNameWithExtension);
 
+    // попытка отправки
     try {
       const response = await axios.post(
         'https://file-upload-server-mc26.onrender.com/api/v1/upload',
         fd
       );
-
+      // когда пришел ответ, "доползаем ползунок"
       await this.completeProgress();
+      // и выводим сообщение об успехе
       this.data.successMessage = `name: ${response.data.name}\nmessage: ${response.data.message}\ntimestamp: ${response.data.timestamp}`;
     } catch (e) {
+      // в случае ошибки, не ждем ползунок, выводим сообщение об ошибке
       this.data.errorMessage = e.response?.data?.error || e.message;
-      this.clearIndicator();
     } finally {
-      this.clearIndicator();
-      this.form.removeAttribute('disabled');
-      this.submitButton.removeAttribute('disabled');
-      this.fileInput.removeAttribute('disabled');
-      this.dataPannel.classList.remove('sending');
-      this.progressIndicator.classList.remove('animating');
-      this.progressIndicator.classList.remove('waiting');
-      this.progressIndicator.classList.remove('completing');
-      this.percents.innerHTML = '';
+      this.finalCleanup();
     }
   }
 }

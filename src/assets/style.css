@@ -1,27 +1,29 @@
 @import './fonts/index.css';
 
-:root {
-  --white: #ffffff;
-  --light-white: #f1f1f1;
-  --accent: #5f5cf0;
-  --disabled: #bbb9d2;
-  --grey: #a5a5a5;
-  --border-color: rgba(204, 204, 206, 0.28);
-  --main-frame-gradient: linear-gradient(
-    180deg,
-    #5f5cf0 0%,
-    #dddcfc 42.5%,
-    #ffffff 100%
-  );
-  --frame-background: rgba(255, 255, 255, 0.4);
-  --error-gradient: linear-gradient(180deg, #f05c5c 0%, #8f8df4 100%);
-}
 
 body {
-  background: var(--grey);
+  background: #706a9d;
   height: 100%;
   display: grid;
   place-items: center;
+}
+
+.card__hidden {
+  transform: translateY(-100vh);
+}
+
+button {
+  border: none;
+  outline: none;
+  background: #000080;
+  border-radius: 10px;
+  font-family: Inter;
+  font-width: 600;
+  font-size: 20px;
+  color: white;
+  padding: 20px;
+  margin: 20px;
+  cursor: pointer;
 }
 
 
