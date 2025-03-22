@@ -74,9 +74,10 @@
     font-family: Inter;
     font-weight: 300;
     font-size: 14px;
-    line-height: 100%;
+    line-height: 140%;
     letter-spacing: 0%;
     text-align: center;
+    white-space: pre;
   }
   &__input-wrapper {
     position: relative;
@@ -97,6 +98,7 @@
     background: var(--light-white);
     border: 1px solid var(--grey);
     outline: none;
+    color: var(--accent);
   }
   &__clear-input {
     position: absolute;
@@ -204,6 +206,11 @@
       grid-template-areas:
         'filename percents'
         'progress progress';
+
+      & ~ button {
+        pointer-events: none;
+        opacity: 60%;
+      }
       .file-card__filename {
         grid-area: filename;
         font-size: 10px;
@@ -228,11 +235,12 @@
         height: 100%;
         background: var(--accent);
         border-radius: 10px;
-        width: 80%;
+        width: 100%;
         &.animating {
+          width: 90%;
           animation: progress 19400ms;
         }
-        
+
         &.waiting {
           animation-duration: 1500ms;
           animation-fill-mode: forwards;
@@ -240,15 +248,22 @@
           animation-name: backgroundMovement;
           animation-timing-function: linear;
           width: 95%;
-          background: linear-gradient(270deg, #5f5cf0  0%, #dddcfc 70%, #f1f1f1 100%);
+          background: linear-gradient(
+            270deg,
+            #5f5cf0 0%,
+            #dddcfc 70%,
+            #f1f1f1 100%
+          );
           background-size: 200%;
         }
 
         &.completing {
-          animation: complete 1000s;
+          animation-duration: 1000ms;
+          animation-fill-mode: forwards;
+          animation-name: complete;
+          animation-timing-function: linear;
+          width: 100%;
         }
-
-        
       }
     }
   }
@@ -269,16 +284,16 @@
       width: 0%;
     }
     8% {
-      width: 70%;
+      width: 60%;
     }
     100% {
-      width: 95%;
+      width: 90%;
     }
   }
 
   @keyframes complete {
     from {
-      width: 80%;
+      width: 90%;
     }
     to {
       width: 100%;

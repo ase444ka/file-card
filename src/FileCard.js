@@ -30,8 +30,7 @@ export default class FileCard extends HTMLElement {
       successMessage: '',
     };
 
-    this.startIndicatorInterval = null;
-    this.continueIndicatorInterval = null;
+    this.currentIndicatorInterval = null;
     this.currentIndicatorPercents = 0;
 
     prepareDropzone();
@@ -222,18 +221,19 @@ export default class FileCard extends HTMLElement {
   indicateProgress() {
     this.dataPannel.classList.add('sending');
     this.progressIndicator.classList.add('animating');
-    this.startIndicatorInterval = setInterval(() => {
+    this.currentIndicatorInterval = setInterval(() => {
       this.percents.innerHTML = (this.currentIndicatorPercents || 1) + '%';
       this.currentIndicatorPercents += 5;
       if (this.currentIndicatorPercents > 70) {
-        clearInterval(this.startIndicatorInterval);
-        this.continueIndicatorInterval = setInterval(() => {
+        this.currentIndicatorPercents = 71;
+        clearInterval(this.currentIndicatorInterval);
+        this.currentIndicatorInterval = setInterval(() => {
           this.currentIndicatorPercents += 1;
           this.percents.innerHTML = this.currentIndicatorPercents + '%';
           if (this.currentIndicatorPercents > 95) {
-            clearInterval(this.continueIndicatorInterval);
-            this.percents.classList.remove('animating');
-            this.percents.classList.add('waiting');
+            clearInterval(this.currentIndicatorInterval);
+            this.progressIndicator.classList.remove('animating');
+            this.progressIndicator.classList.add('waiting');
           }
         }, 900);
       }
@@ -241,22 +241,28 @@ export default class FileCard extends HTMLElement {
   }
 
   async completeProgress(response) {
+    clearInterval(this.currentIndicatorInterval);
     return new Promise((res) => {
       this.progressIndicator.classList.remove('animating');
       this.progressIndicator.classList.remove('waiting');
       this.progressIndicator.classList.add('completing');
       const lastPersents = 100 - this.currentIndicatorPercents;
-      const interval = setInterval(() => {
+      this.currentIndicatorInterval = setInterval(() => {
+        
+        this.percents.innerHTML = this.currentIndicatorPercents + '%';
+        this.currentIndicatorPercents += 1;
         if (this.currentIndicatorPercents > 100) {
           this.percents.innerHTML = '100%';
-          clearInterval(interval);
-          res(response);
+          clearInterval(this.currentIndicatorInterval);
+          this.currentIndicatorInterval = null;
+          setTimeout(() => {
+            res(response);
+          }, 300)
+          
         }
-        this.percents.innerHTML = this.currentIndicatorPercents + '%';
-        this.currentIndicatorPercents += 5;
-      }, Math.floor(1000 / (lastPersents / 5)));
+      }, Math.floor(1000 / lastPersents));
     });
-  }
+  } 
 
   registerEvents() {
     this.dropzone.addEventListener(
@@ -316,6 +322,14 @@ export default class FileCard extends HTMLElement {
     this.registerEvents();
   }
 
+  clearIndicator() {
+    if (this.currentIndicatorInterval) {
+      clearInterval(this.currentIndicatorInterval)
+    }
+    
+    this.currentIndicatorPercents = 0;
+  }
+
   async sendFile() {
     this.form.setAttribute('disabled', '');
     this.submitButton.setAttribute('disabled', '');
@@ -332,21 +346,20 @@ export default class FileCard extends HTMLElement {
       );
 
       await this.completeProgress();
-      this.data.successMessage = `
-            name: ${response.data.name}
-            message: ${response.data.message}
-            timestamp: ${response.data.timestamp}
-          `;
+      this.data.successMessage = `name: ${response.data.name}\nmessage: ${response.data.message}\ntimestamp: ${response.data.timestamp}`;
     } catch (e) {
-      this.data.errorMessage = e.response?.data?.message || e.message;
+      this.data.errorMessage = e.response?.data?.error || e.message;
+      this.clearIndicator()
     } finally {
+      this.clearIndicator()
       this.form.removeAttribute('disabled');
       this.submitButton.removeAttribute('disabled');
       this.fileInput.removeAttribute('disabled');
       this.dataPannel.classList.remove('sending');
       this.progressIndicator.classList.remove('animating');
+      this.progressIndicator.classList.remove('waiting');
+      this.progressIndicator.classList.remove('completing');
       this.percents.innerHTML = '';
-      this.currentIndicatorPercents = 0;
     }
   }
 }
