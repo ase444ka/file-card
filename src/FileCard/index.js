@@ -35,6 +35,11 @@ export default class FileCard extends HTMLElement {
     this.currentIndicatorInterval = null;
     this.currentIndicatorPercents = 0;
 
+    // подсказки по заполнению формы по этапам
+    this.tooltip1 = 'Перед загрузкой дайте имя файлу'
+    this.tooltip2 = 'Перенесите ваш файл в область ниже'
+    this.tooltip3 = 'Загрузите ваш файл'
+
     // подготовка к возможности реализации процедуры drug-n-drop
     prepareDropzone();
   }
@@ -206,7 +211,7 @@ export default class FileCard extends HTMLElement {
     if (value) {
       // если задано имя, можно позволить пользователю загружать файл
       this.fileInput.removeAttribute('disabled');
-      this.setTooltip('Перенесите ваш файл в область ниже');
+      this.setTooltip(this.tooltip2);
     } else {
       // если имя файла удалили
       if (!this.data.fileName) {
@@ -215,7 +220,7 @@ export default class FileCard extends HTMLElement {
       }
       // если очищаем заполненное поле, запрещаем загружать файл, отображаем подсказку
       this.fileInput.setAttribute('disabled', '');
-      this.setTooltip('Перед загрузкой дайте имя файлу');
+      this.setTooltip(this.tooltip1);
       // синхронизируем поле ввода файла, очищаем его
       this.textInput.value = '';
       // удостовериваемся что поле ввода имени файла не скрыто
@@ -226,7 +231,8 @@ export default class FileCard extends HTMLElement {
 
   //  вызывается при изменении файла для отправки
   handleFile(value) {
-    // скрытие панели с информацией о файле, очистка поля ввода файла, запрет отправки формы
+    // скрытие панели с информацией о файле, очистка поля ввода файла, 
+    // запрет отправки формы, установка подсказки
     const cleanUp = () => {
       this.infoPannel.hide();
       this.fileInput.value = null;
@@ -248,11 +254,14 @@ export default class FileCard extends HTMLElement {
       } else {
         // если нет сообщений об ошибке, показываем панель с информацией о файле,
         // разрешаем отправку формы, сохраняем файл, скрываем поле ввода имени файла
+        // меняем подсказку
         this.nameInfo.innerHTML = `${this.data.fileName}.${getExtension(
           value
         )}`;
         this.textInputPannel.hide();
         this.infoPannel.show();
+        this.setTooltip(this.tooltip3);
+
         this.submitButton.removeAttribute('disabled');
         result = value;
       }
@@ -341,9 +350,10 @@ export default class FileCard extends HTMLElement {
     if (this.data.errorMessage) {
       this.data.errorMessage = '';
       this.form.classList.remove('user-error');
-      const message = this.data.fileName
-        ? 'Загрузите ваш файл'
-        : 'Перенесите ваш файл в область ниже';
+      console.log(this.data.file, this.data.fileName)
+      const message = this.data.fileName ?
+        this.data.file ? this.tooltip3 :
+        this.tooltip2 : this.tooltip1
       this.setTooltip(message);
     }
   }
